@@ -1,3 +1,4 @@
+create extension if not exists pgtap with schema extensions;
 -- Database invariants supporting M-PESA webhook idempotency and tenant-scoped secrets.
 begin;
 select plan(5);
