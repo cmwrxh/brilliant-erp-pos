@@ -71,7 +71,8 @@ export async function POST(request: NextRequest) {
     }, { onConflict: "organization_id,provider" });
     if (error) throw error;
     const testEnabled = body.environment !== "live" && ["flutterwave", "paystack", "mpesa"].includes(body.provider);
-    const base = (process.env.APP_BASE_URL ?? request.nextUrl.origin).replace(/\\/$/, "");
+    const baseRaw = process.env.APP_BASE_URL ?? request.nextUrl.origin;
+    const base = baseRaw.endsWith("/") ? baseRaw.slice(0, -1) : baseRaw;
     const callbackUrl = callbackToken ? base + "/api/payments/webhooks/mpesa/c2b?token=" + encodeURIComponent(callbackToken) : undefined;
     return NextResponse.json({ saved: true, enabled: testEnabled, callbackUrl, validationUrl: callbackUrl ? base + "/api/payments/webhooks/mpesa/validate?token=" + encodeURIComponent(callbackToken) : undefined, message: testEnabled ? "Test-mode credentials encrypted and saved. Live charges remain disabled." : "Credentials encrypted and saved. This provider remains disabled until its country-specific API and callback flow are verified." }, { status: 201 });
   } catch (error) {
