@@ -63,7 +63,7 @@ export async function POST(request:NextRequest){
    return NextResponse.json({ResultCode:0,ResultDesc:"Callback amount or metadata did not match the initiated payment."});
   }
   await confirmWithDaraja(admin,transaction.organization_id,callback.CheckoutRequestID);
-  const {data:completed,error:completionError}=await admin.rpc("complete_sale",{
+  const {error:completionError}=await admin.rpc("complete_sale",{
    p_organization_id:transaction.organization_id,p_sale_id:transaction.sale_id,
    p_method:"mpesa",p_amount:amount,p_provider_reference:receipt
   });
