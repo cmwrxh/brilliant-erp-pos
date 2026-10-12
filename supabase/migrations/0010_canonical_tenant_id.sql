@@ -1,5 +1,5 @@
--- Repair the existing tenant boundary columns without dropping policies that depend on them.
--- organization_id remains the established FK key; CHECK constraints prevent tenant drift.
+-- Verify and preserve the canonical tenant columns introduced by migration 0009.
+-- tenant_id is generated from organization_id (or id for organizations), so it cannot drift.
 do $$
 declare t text;
 begin
@@ -9,16 +9,20 @@ begin
     'products','provider_transactions','sale_items','sale_payments','sales',
     'offline_sync_receipts'
   ] loop
-    execute format('update public.%I set tenant_id = organization_id where tenant_id is distinct from organization_id', t);
-    execute format('alter table public.%I alter column tenant_id set not null', t);
-    execute format('alter table public.%I drop constraint if exists %I', t, t || '_tenant_matches_organization');
-    execute format('alter table public.%I add constraint %I check (tenant_id = organization_id)', t, t || '_tenant_matches_organization');
+    if not exists (
+      select 1 from information_schema.columns c
+      where c.table_schema='public' and c.table_name=t and c.column_name='tenant_id'
+        and c.is_generated='ALWAYS'
+    ) then
+      raise exception 'Expected generated tenant_id on public.%',t;
+    end if;
   end loop;
+  if not exists (
+    select 1 from information_schema.columns c
+    where c.table_schema='public' and c.table_name='organizations'
+      and c.column_name='tenant_id' and c.is_generated='ALWAYS'
+  ) then raise exception 'Expected generated tenant_id on public.organizations'; end if;
 end $$;
-update public.organizations set tenant_id=id where tenant_id is distinct from id;
-alter table public.organizations alter column tenant_id set not null;
-alter table public.organizations drop constraint if exists organizations_tenant_matches_id;
-alter table public.organizations add constraint organizations_tenant_matches_id check (tenant_id=id);
 
 revoke all on public.organizations, public.organization_members, public.locations,
   public.products, public.inventory_balances, public.inventory_movements,
@@ -42,4 +46,3 @@ alter table public.provider_transactions enable row level security;
 alter table public.etims_invoices enable row level security;
 alter table public.mpesa_transactions enable row level security;
 alter table public.offline_sync_receipts enable row level security;
-comment on column public.organizations.tenant_id is 'Non-null, constrained to organization id; canonical tenant boundary.';
