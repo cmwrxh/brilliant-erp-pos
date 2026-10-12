@@ -24,7 +24,8 @@ export async function verifyAndCompletePayment(provider:"flutterwave"|"paystack"
   verifiedStatus=json.data.status??"";verifiedAmount=Number(json.data.amount)/100;verifiedCurrency=json.data.currency??"";providerReference=json.data.reference??reference;providerId=json.data.id;
  }else{
   if(!credentials.secretKey)throw new Error("Flutterwave secret key is missing.");
-  const response=await fetch("https://api.flutterwave.com/v3/transactions/"+encodeURIComponent(reference)+"/verify",{headers:{Authorization:"Bearer "+credentials.secretKey},cache:"no-store",signal:AbortSignal.timeout(15000)});
+  const transactionId=transaction.provider_reference||reference;
+  const response=await fetch("https://api.flutterwave.com/v3/transactions/"+encodeURIComponent(transactionId)+"/verify",{headers:{Authorization:"Bearer "+credentials.secretKey},cache:"no-store",signal:AbortSignal.timeout(15000)});
   const json=await response.json() as {status?:string;data?:{status?:string;amount?:number;currency?:string;tx_ref?:string;id?:string|number}};
   if(!response.ok||!json.data)return {ok:false as const,status:"verification_failed"};
   verifiedStatus=json.data.status??"";verifiedAmount=Number(json.data.amount);verifiedCurrency=json.data.currency??"";providerReference=json.data.tx_ref??reference;providerId=json.data.id;
