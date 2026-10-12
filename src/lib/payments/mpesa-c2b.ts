@@ -21,7 +21,7 @@ async function findAccount(token:string){
  return data;
 }
 function parseTransactionTime(value?:string){
- if(!value||!/^\\d{14}$/.test(value))return null;
+ if(!value||!/^\d{14}$/.test(value))return null;
  const iso=value.slice(0,4)+"-"+value.slice(4,6)+"-"+value.slice(6,8)+"T"+value.slice(8,10)+":"+value.slice(10,12)+":"+value.slice(12,14)+"+03:00";
  const date=new Date(iso);return Number.isNaN(date.getTime())?null:date.toISOString();
 }
