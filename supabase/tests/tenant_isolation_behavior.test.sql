@@ -1,6 +1,6 @@
 -- Behavioral cross-tenant regression test. All fixtures are rolled back.
 begin;
-select plan(9);
+select plan(8);
 
 insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at)
 values
