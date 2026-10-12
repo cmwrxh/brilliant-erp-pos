@@ -74,7 +74,8 @@ export async function POST(request: NextRequest) {
     const baseRaw = process.env.APP_BASE_URL ?? request.nextUrl.origin;
     const base = baseRaw.endsWith("/") ? baseRaw.slice(0, -1) : baseRaw;
     const callbackUrl = callbackToken ? base + "/api/payments/webhooks/mpesa/c2b?token=" + encodeURIComponent(callbackToken) : undefined;
-    return NextResponse.json({ saved: true, enabled: testEnabled, callbackUrl, validationUrl: callbackUrl ? base + "/api/payments/webhooks/mpesa/validate?token=" + encodeURIComponent(callbackToken) : undefined, message: testEnabled ? "Test-mode credentials encrypted and saved. Live charges remain disabled." : "Credentials encrypted and saved. This provider remains disabled until its country-specific API and callback flow are verified." }, { status: 201 });
+    const validationUrl = callbackToken ? base + "/api/payments/webhooks/mpesa/validate?token=" + encodeURIComponent(callbackToken) : undefined;
+    return NextResponse.json({ saved: true, enabled: testEnabled, callbackUrl, validationUrl, message: testEnabled ? "Test-mode credentials encrypted and saved. Live charges remain disabled." : "Credentials encrypted and saved. This provider remains disabled until its country-specific API and callback flow are verified." }, { status: 201 });
   } catch (error) {
     console.error("Payment settings POST failed", error instanceof Error ? error.message : "unknown error");
     return NextResponse.json({ error: "Could not securely save provider settings. Check server configuration." }, { status: 503 });
