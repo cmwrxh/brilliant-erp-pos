@@ -11,7 +11,7 @@ select ok(
 select ok(
   (select count(*) from information_schema.columns where table_schema='public'
     and column_name='tenant_id' and is_generated='ALWAYS'
-    and table_name in ('organizations','organization_members','locations','products','inventory_balances','customers','sales','sale_items','sale_payments','inventory_movements','payment_provider_accounts','provider_transactions','etims_invoices','mpesa_transactions','offline_sync_receipts')) = 16,
+    and table_name in ('organizations','organization_members','locations','products','inventory_balances','customers','sales','sale_items','sale_payments','inventory_movements','payment_provider_accounts','provider_transactions','etims_invoices','mpesa_transactions','offline_sync_receipts')) = 15,
   'Every tenant table has a generated tenant_id mapped to its canonical tenant key'
 );
 
