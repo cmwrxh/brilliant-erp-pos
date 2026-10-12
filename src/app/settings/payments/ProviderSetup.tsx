@@ -6,7 +6,7 @@ import { ArrowUpRight, CheckCircle2, LoaderCircle, LockKeyhole } from "lucide-re
 type Provider = { id: string; name: string; category: string; description: string; fields: { key: string; label: string; secret?: boolean }[]; icon: React.ComponentType<{ size?: number }> ; accent: string };
 type Account = { organization_id: string; provider: string; enabled: boolean; environment: string; last_four_hint: string | null };
 const required: Record<string, {key:string;label:string;secret?:boolean}[]> = {
-  mpesa: [{key:"consumerKey",label:"Consumer key",secret:true},{key:"consumerSecret",label:"Consumer secret",secret:true},{key:"shortcode",label:"Business shortcode"},{key:"passkey",label:"Lipa Na M-Pesa passkey",secret:true}],
+  mpesa: [{key:"consumerKey",label:"Consumer key",secret:true},{key:"consumerSecret",label:"Consumer secret",secret:true},{key:"shortcode",label:"Business shortcode / Till number"},{key:"passkey",label:"Lipa Na M-Pesa passkey",secret:true},{key:"accountType",label:"CustomerPayBillOnline or CustomerBuyGoodsOnline"}],
   airtel_money: [{key:"clientId",label:"Client ID",secret:true},{key:"clientSecret",label:"Client secret",secret:true},{key:"country",label:"Country code (e.g. KE)"},{key:"currency",label:"Currency (e.g. KES)"}],
   flutterwave: [{key:"secretKey",label:"Secret key",secret:true},{key:"secretHash",label:"Webhook secret hash",secret:true}],
   paystack: [{key:"secretKey",label:"Secret key",secret:true}],
@@ -26,7 +26,7 @@ export function ProviderSetup({ providers, organizationId }: { providers: Provid
       const response=await fetch("/api/settings/payments",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({organizationId,provider:provider.id,environment,credentials:values})});
       const result=await response.json();
       if(!response.ok) throw new Error(result.error??"Could not save provider settings.");
-      setMessage(result.message??"Saved securely."); setProvider(null); setValues({});
+      setMessage((result.message??"Saved securely.")+(result.validationUrl?" Register these URLs in your Safaricom Daraja C2B configuration. Validation: "+result.validationUrl+" Confirmation: "+result.callbackUrl:"")); setProvider(null); setValues({});
       const refresh=await fetch("/api/settings/payments",{cache:"no-store"}); if(refresh.ok){const data=await refresh.json();setAccounts(data.accounts??[]);}
     } catch(error) {setMessage(error instanceof Error?error.message:"Could not save provider settings.");}
     finally{setBusy(false);}
