@@ -146,8 +146,8 @@ as $$
       and m.user_id = (select auth.uid())
   );
 $$;
-revoke all on function public.is_organization_member(uuid) from public;
-grant execute on function public.is_organization_member(uuid) to authenticated;
+revoke all on function public.is_organization_member(uuid) from public, anon;
+grant execute on function public.is_organization_member(uuid) to authenticated, service_role;
 
 alter table public.organizations enable row level security;
 alter table public.organization_members enable row level security;
