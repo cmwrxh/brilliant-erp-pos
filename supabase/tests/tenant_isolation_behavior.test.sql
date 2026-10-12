@@ -1,3 +1,4 @@
+create extension if not exists pgtap with schema extensions;
 -- Behavioral cross-tenant regression test. All fixtures are rolled back.
 begin;
 select plan(8);
