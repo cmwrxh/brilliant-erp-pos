@@ -25,7 +25,7 @@ Set these in Coolify's Environment Variables section. Never add secret values to
 
 ## Before first deployment
 
-1. Confirm all Supabase migrations through `0006_revoke_anon_membership_helper` are applied.
+1. Confirm all Supabase migrations through `0007_provider_payment_methods` are applied.
 2. Add the runtime variables above. Do not deploy payment settings without the service-role key and encryption key.
 3. In Supabase Auth, add the production URL and `/onboarding` as allowed redirect URLs.
 4. Set the custom domain and HTTPS in Coolify.
