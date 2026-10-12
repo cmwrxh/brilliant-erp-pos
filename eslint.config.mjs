@@ -1,4 +1,8 @@
-import nextVitals from "eslint-config-next/core-web-vitals.js";
-import nextTs from "eslint-config-next/typescript.js";
+import nextPlugin from "@next/eslint-plugin-next";
 
-export default [nextVitals, nextTs, { ignores: [".next/**", "out/**", "build/**", "next-env.d.ts"] }];
+export default [{
+  files: ["**/*.{js,jsx,ts,tsx}"],
+  ignores: [".next/**", "out/**", "build/**", "next-env.d.ts"],
+  plugins: { "@next/next": nextPlugin },
+  rules: nextPlugin.configs.recommended.rules,
+}];
