@@ -1,11 +1,11 @@
-import { randomUUID } from "node:crypto";
+import { createHash,randomBytes,randomUUID } from "node:crypto";
 import { NextRequest,NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { decryptCredentials } from "@/lib/payments/crypto";
 import { initializeProviderPayment,type PaymentProvider } from "@/lib/payments/providers";
 export const runtime="nodejs";
-const supported=["flutterwave","paystack"] as const;
+const supported=["flutterwave","paystack","mpesa"] as const;
 export async function POST(request:NextRequest){
  let organizationId="";let saleId="";
  try{
@@ -16,7 +16,8 @@ export async function POST(request:NextRequest){
   organizationId=body.organizationId??"";
   if(!organizationId||!body.locationId||!body.provider||!supported.includes(body.provider as typeof supported[number])||!Array.isArray(body.items)||!body.items.length||body.items.length>100)return NextResponse.json({error:"Invalid payment request."},{status:400});
   const email=typeof body.email==="string"?body.email.trim():"";
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return NextResponse.json({error:"Enter a valid customer email for hosted checkout."},{status:400});
+  if((body.provider==="flutterwave"||body.provider==="paystack")&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return NextResponse.json({error:"Enter a valid customer email for hosted checkout."},{status:400});
+  if(body.provider==="mpesa"&&(!body.phone||typeof body.phone!=="string"))return NextResponse.json({error:"Enter the customer's mobile number for M-PESA STK Push."},{status:400});
   const {data:membership}=await session.from("organization_members").select("role").eq("organization_id",organizationId).maybeSingle();
   if(!membership||!["owner","admin","manager","cashier"].includes(membership.role))return NextResponse.json({error:"Workspace access denied."},{status:403});
   const admin=createSupabaseAdminClient();
@@ -45,11 +46,20 @@ export async function POST(request:NextRequest){
     }
   }
   const reference="ERP-"+randomUUID();
-  const {error:transactionError}=await admin.from("provider_transactions").insert({organization_id:organizationId,sale_id:saleId,provider:body.provider,reference,amount:sale.grand_total,currency_code:sale.currency_code,status:"pending"});
+  const callbackToken=body.provider==="mpesa"?randomBytes(32).toString("hex"):"";
+  const callbackTokenHash=callbackToken?createHash("sha256").update(callbackToken).digest("hex"):null;
+  const {error:transactionError}=await admin.from("provider_transactions").insert({organization_id:organizationId,sale_id:saleId,provider:body.provider,reference,amount:sale.grand_total,currency_code:sale.currency_code,status:"pending",callback_token_hash:callbackTokenHash});
   if(transactionError)throw transactionError;
   const base=(process.env.APP_BASE_URL??request.nextUrl.origin).replace(/\/$/,"");
   try{
-    const initialized=await initializeProviderPayment(body.provider as PaymentProvider,credentials,{reference,amount:Number(sale.grand_total),currency:sale.currency_code,email,name:typeof body.name==="string"?body.name.slice(0,120):undefined,phone:typeof body.phone==="string"?body.phone.slice(0,30):undefined,callbackUrl:base+"/payments/return?provider="+body.provider,metadata:{organization_id:organizationId,sale_id:saleId}});
+    const callbackUrl=body.provider==="mpesa"?base+"/api/payments/webhooks/mpesa?reference="+encodeURIComponent(reference)+"&token="+encodeURIComponent(callbackToken):base+"/payments/return?provider="+body.provider;
+    const initialized=await initializeProviderPayment(body.provider as PaymentProvider,credentials,{reference,amount:Number(sale.grand_total),currency:sale.currency_code,email,name:typeof body.name==="string"?body.name.slice(0,120):undefined,phone:typeof body.phone==="string"?body.phone.slice(0,30):undefined,callbackUrl,metadata:{organization_id:organizationId,sale_id:saleId}});
+    if(body.provider==="mpesa"){
+      const {error:updateError}=await admin.from("provider_transactions").update({provider_reference:initialized.providerReference,updated_at:new Date().toISOString()}).eq("reference",reference).eq("organization_id",organizationId);
+      if(updateError)throw updateError;
+      return NextResponse.json({mobilePrompt:true,message:initialized.message??"M-PESA prompt sent. Ask the customer to enter their PIN.",reference,receiptNumber:sale.receipt_number},{status:201});
+    }
+    if(!initialized.checkoutUrl)throw new Error("Payment provider did not return a checkout URL.");
     return NextResponse.json({checkoutUrl:initialized.checkoutUrl,reference,receiptNumber:sale.receipt_number},{status:201});
   }catch(error){
     await admin.from("provider_transactions").update({status:"failed",updated_at:new Date().toISOString()}).eq("reference",reference);
