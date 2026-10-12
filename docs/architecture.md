@@ -46,4 +46,4 @@ Membership provisioning, organization creation, role changes, stock movements, c
 8. Automated tenant-isolation, permission, concurrency and recovery tests.
 
 ## Current status
-The dashboard is a static interface preview using sample data. It is not connected to Supabase and its controls do not perform real business operations yet. The database migration is a starting point for review, not a production-ready accounting or tax implementation.
+The dashboard reads organization-scoped sales, stock-alert and customer counts from Supabase; its sales trend line is still illustrative. Authentication, workspace onboarding, product/customer creation, stock receiving, stock movement ledger, atomic cash checkout, and Flutterwave/Paystack sandbox checkout with server-side verification and signed webhooks are implemented. M-Pesa/Airtel Money collection, live payment activation, stock reservations for asynchronous payment attempts, offline queueing, KRA eTIMS, accounting close, and production monitoring still require implementation and validation. The database schema is an initial foundation, not a production-ready accounting or tax implementation.
