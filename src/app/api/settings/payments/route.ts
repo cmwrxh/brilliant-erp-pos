@@ -59,14 +59,15 @@ export async function POST(request: NextRequest) {
       organization_id: body.organizationId,
       provider: body.provider,
       encrypted_credentials: encrypted,
-      enabled: false,
+      enabled: body.environment !== "live" && ["flutterwave", "paystack"].includes(body.provider),
       environment: body.environment === "live" ? "live" : "test",
       configured_by: auth.user.id,
       last_four_hint: hints ? hints.slice(-4) : null,
       updated_at: new Date().toISOString(),
     }, { onConflict: "organization_id,provider" });
     if (error) throw error;
-    return NextResponse.json({ saved: true, enabled: false, message: "Credentials encrypted and saved. Provider remains disabled until verification and a test transaction pass." }, { status: 201 });
+    const testEnabled = body.environment !== "live" && ["flutterwave", "paystack"].includes(body.provider);
+    return NextResponse.json({ saved: true, enabled: testEnabled, message: testEnabled ? "Test-mode credentials encrypted and saved. Live charges remain disabled." : "Credentials encrypted and saved. This provider remains disabled until its country-specific API and callback flow are verified." }, { status: 201 });
   } catch (error) {
     console.error("Payment settings POST failed", error instanceof Error ? error.message : "unknown error");
     return NextResponse.json({ error: "Could not securely save provider settings. Check server configuration." }, { status: 503 });
