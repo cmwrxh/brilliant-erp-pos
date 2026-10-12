@@ -49,7 +49,7 @@ export async function POST(request:NextRequest){
   if(transactionError)throw transactionError;
   const base=(process.env.APP_BASE_URL??request.nextUrl.origin).replace(/\/$/,"");
   try{
-    const initialized=await initializeProviderPayment(body.provider as PaymentProvider,credentials,{reference,amount:Number(sale.grand_total),currency:sale.currency_code,email,name:typeof body.name==="string"?body.name.slice(0,120):undefined,phone:typeof body.phone==="string"?body.phone.slice(0,30):undefined,callbackUrl:base+"/payments/return",metadata:{organization_id:organizationId,sale_id:saleId}});
+    const initialized=await initializeProviderPayment(body.provider as PaymentProvider,credentials,{reference,amount:Number(sale.grand_total),currency:sale.currency_code,email,name:typeof body.name==="string"?body.name.slice(0,120):undefined,phone:typeof body.phone==="string"?body.phone.slice(0,30):undefined,callbackUrl:base+"/payments/return?provider="+body.provider,metadata:{organization_id:organizationId,sale_id:saleId}});
     return NextResponse.json({checkoutUrl:initialized.checkoutUrl,reference,receiptNumber:sale.receipt_number},{status:201});
   }catch(error){
     await admin.from("provider_transactions").update({status:"failed",updated_at:new Date().toISOString()}).eq("reference",reference);
