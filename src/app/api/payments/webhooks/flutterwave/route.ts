@@ -23,7 +23,10 @@ export async function POST(request:NextRequest){
   if(signature){const expected=createHmac("sha256",credentials.secretHash).update(raw).digest("base64");const a=Buffer.from(expected);const b=Buffer.from(signature);valid=a.length===b.length&&timingSafeEqual(a,b);}
   else if(legacyHash){const a=Buffer.from(credentials.secretHash);const b=Buffer.from(legacyHash);valid=a.length===b.length&&timingSafeEqual(a,b);}
   if(!valid)return NextResponse.json({error:"Invalid webhook signature."},{status:401});
-  if((event.event==="charge.completed"||event.type==="charge.completed")&&["successful","success"].includes(event.data?.status??""))await verifyAndCompletePayment("flutterwave",reference);
+  if((event.event==="charge.completed"||event.type==="charge.completed")&&["successful","success"].includes(event.data?.status??"")){
+   if(event.data?.id!==undefined)await admin.from("provider_transactions").update({provider_reference:String(event.data.id)}).eq("provider","flutterwave").eq("reference",reference);
+   await verifyAndCompletePayment("flutterwave",reference);
+  }
   return NextResponse.json({received:true});
  }catch(error){console.error("Flutterwave webhook processing failed",error instanceof Error?error.message:"unknown error");return NextResponse.json({error:"Webhook processing failed."},{status:500});}
 }
