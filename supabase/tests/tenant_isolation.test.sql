@@ -1,3 +1,4 @@
+create extension if not exists pgtap with schema extensions;
 -- Run with Supabase CLI: supabase test db
 begin;
 select plan(8);
