@@ -1,38 +1,38 @@
-import { ArrowUpRight, CheckCircle2, CircleDashed, CreditCard, LockKeyhole, Smartphone, WalletCards } from "lucide-react";
+import { ArrowUpRight, CreditCard, LockKeyhole, Smartphone, WalletCards } from "lucide-react";
 import Link from "next/link";
+import { ProviderSetup } from "./ProviderSetup";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-type Provider = { id: string; name: string; category: string; description: string; fields: string[]; icon: typeof CreditCard; accent: string };
-
-const providers: Provider[] = [
-  { id: "mpesa", name: "M-Pesa", category: "Mobile money · Kenya", description: "STK Push checkout with asynchronous payment confirmation and reconciliation.", fields: ["Consumer key", "Consumer secret", "Shortcode", "Passkey"], icon: Smartphone, accent: "mint" },
-  { id: "airtel_money", name: "Airtel Money", category: "Mobile money", description: "Customer-initiated collection with server-side status verification.", fields: ["Client ID", "Client secret", "Country", "Currency"], icon: Smartphone, accent: "red" },
-  { id: "flutterwave", name: "Flutterwave", category: "Cards · Mobile money · Bank", description: "Hosted checkout for supported currencies and payment methods.", fields: ["Secret key", "Webhook secret hash"], icon: WalletCards, accent: "orange" },
-  { id: "paystack", name: "Paystack", category: "Cards · Bank · Mobile money", description: "Hosted checkout with server-side transaction verification.", fields: ["Secret key", "Webhook verification"], icon: CreditCard, accent: "blue" },
+const providers = [
+  { id: "mpesa", name: "M-Pesa", category: "Mobile money · Kenya", description: "Safaricom STK Push and server-side payment confirmation.", fields: [{key:"consumerKey",label:"Consumer key"},{key:"consumerSecret",label:"Consumer secret"},{key:"shortcode",label:"Business shortcode"},{key:"passkey",label:"Lipa Na M-Pesa passkey"}], icon: Smartphone, accent: "mint" },
+  { id: "airtel_money", name: "Airtel Money", category: "Mobile money", description: "Mobile-money collection with country-specific merchant API setup.", fields: [{key:"clientId",label:"Client ID"},{key:"clientSecret",label:"Client secret"},{key:"country",label:"Country code"},{key:"currency",label:"Currency"}], icon: Smartphone, accent: "red" },
+  { id: "flutterwave", name: "Flutterwave", category: "Cards · Mobile money · Bank", description: "Hosted checkout for supported currencies and payment methods.", fields: [{key:"secretKey",label:"Secret key"},{key:"secretHash",label:"Webhook secret hash"}], icon: WalletCards, accent: "orange" },
+  { id: "paystack", name: "Paystack", category: "Cards · Bank · Mobile money", description: "Hosted checkout with server-side transaction verification.", fields: [{key:"secretKey",label:"Secret key"}], icon: CreditCard, accent: "blue" },
 ];
 
 export default async function PaymentSettingsPage() {
-  let signedIn = false;
-  let organizationCount = 0;
+  let organizations: {id:string;name:string;role:string}[] = [];
+  let authReady = false;
   try {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
-    signedIn = Boolean(user);
+    authReady = Boolean(user);
     if (user) {
-      const { data } = await supabase.from("organization_members").select("organization_id").limit(20);
-      organizationCount = data?.length ?? 0;
+      const { data: memberships } = await supabase.from("organization_members").select("organization_id,role").in("role",["owner","admin"]).limit(20);
+      if (memberships?.length) {
+        const ids = memberships.map(m=>m.organization_id);
+        const { data: orgs } = await supabase.from("organizations").select("id,name").in("id",ids);
+        organizations = (orgs??[]).map(org=>({...org,role:memberships.find(m=>m.organization_id===org.id)?.role??"admin"}));
+      }
     }
-  } catch {
-    // Keep the page useful as a setup checklist when environment variables are not configured.
-  }
-
+  } catch { /* Render the setup guidance if Supabase is not yet configured. */ }
   return <main className="settings-page">
     <div className="settings-breadcrumb"><Link href="/">Dashboard</Link><span>/</span><strong>Payment settings</strong></div>
-    <header className="settings-hero"><div><p className="eyebrow">FINANCE & INTEGRATIONS</p><h1>Payment providers</h1><p className="muted">Connect payment methods your business accepts at checkout.</p></div><span className="secure-label"><LockKeyhole size={15}/> Credentials encrypted at rest</span></header>
-    <section className="payment-notice"><div className="notice-icon"><CircleDashed size={19}/></div><div><strong>Setup checklist, not live payment processing</strong><p>Providers stay inactive until merchant credentials, encrypted storage, verified webhooks and a test transaction are complete. Never paste live secret keys into support chats or source code.</p></div></section>
-    {!signedIn && <section className="payment-notice warning"><div className="notice-icon"><LockKeyhole size={19}/></div><div><strong>Authentication needs to be configured</strong><p>Payment credentials can only be connected by an authenticated organization owner or administrator. Configure Supabase Auth before enabling these settings.</p></div></section>}
-    <div className="provider-grid">{providers.map(({id,name,category,description,fields,icon:Icon,accent})=><article className="provider-card" key={id}><div className="provider-card-top"><span className={"provider-icon "+accent}><Icon size={22}/></span><span className="provider-state"><span/>Not connected</span></div><h2>{name}</h2><p className="provider-category">{category}</p><p className="provider-description">{description}</p><div className="provider-fields"><span>REQUIRED CONFIGURATION</span>{fields.map((field)=><div key={field}><CheckCircle2 size={14}/>{field}</div>)}</div><button className="provider-connect" disabled title="Available after secure merchant onboarding is configured">Configure provider <ArrowUpRight size={15}/></button></article>)}</div>
-    <section className="payment-footnote"><strong>Merchant funds and tenant isolation</strong><p>Each business must receive funds into its own approved merchant account or provider subaccount. Credentials must be encrypted server-side, never readable through the browser database API. Provider callbacks must be signature-verified and reconciled before a sale is marked paid.</p></section>
-    <p className="settings-small">Workspace memberships detected: {organizationCount}. No payment credentials are currently displayed or requested on this page.</p>
+    <header className="settings-hero"><div><p className="eyebrow">FINANCE & INTEGRATIONS</p><h1>Payment providers</h1><p className="muted">Connect the payment methods your business accepts at checkout.</p></div><span className="secure-label"><LockKeyhole size={15}/> Encrypted credentials</span></header>
+    <section className="payment-notice"><div className="notice-icon"><LockKeyhole size={19}/></div><div><strong>Merchant credentials are protected</strong><p>Secrets are encrypted on the server before database storage and are never sent back to the browser. A provider remains disabled until its payment flow and webhook are verified with a test transaction.</p></div></section>
+    {!authReady && <section className="payment-notice warning"><div className="notice-icon"><LockKeyhole size={19}/></div><div><strong>Supabase sign-in is not ready</strong><p>Configure Supabase Auth and environment variables before connecting a merchant account. This page does not accept credentials until the server can authenticate your organization.</p></div></section>}
+    {authReady && organizations.length===0 && <section className="payment-notice warning"><div className="notice-icon"><LockKeyhole size={19}/></div><div><strong>No administrator workspace found</strong><p>Create an organization and assign your user the owner or admin role before setting up payment providers.</p></div></section>}
+    {organizations.length>0 ? <><div className="organization-select-wrap"><label htmlFor="payment-organization">Business workspace</label><select id="payment-organization" defaultValue={organizations[0].id} disabled={organizations.length>1} aria-label="Business workspace">{organizations.map(org=><option value={org.id} key={org.id}>{org.name}</option>)}</select>{organizations.length>1&&<p>Selecting between multiple workspaces will be enabled in a follow-up update.</p>}</div><ProviderSetup providers={providers} organizationId={organizations[0].id}/></> : <div className="provider-grid">{providers.map(({id,name,category,description,fields,icon:Icon,accent})=><article className="provider-card" key={id}><div className="provider-card-top"><span className={"provider-icon "+accent}><Icon size={22}/></span><span className="provider-state"><span/>Setup required</span></div><h2>{name}</h2><p className="provider-category">{category}</p><p className="provider-description">{description}</p><div className="provider-fields"><span>REQUIRED CONFIGURATION</span>{fields.map(field=><div key={field.key}><ArrowUpRight size={14}/>{field.label}</div>)}</div><button className="provider-connect" disabled>Configure after sign-in <ArrowUpRight size={15}/></button></article>)}</div>}
+    <section className="payment-footnote"><strong>Important before going live</strong><p>Each business must receive funds into its own approved merchant account or provider subaccount. M-Pesa and Airtel Money use asynchronous mobile-money collection flows. Payment status must be verified server-side and matched to the expected sale amount, currency and reference before a sale is marked paid.</p></section>
   </main>;
 }
