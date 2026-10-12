@@ -62,14 +62,14 @@ export async function handleC2BConfirmation(request:NextRequest){
   if(!existing){
    const {error:insertError}=await admin.from("mpesa_transactions").insert({
     organization_id:account.organization_id,provider_receipt:receipt,transaction_type:"c2b",
-    shortcode:String(body.BusinessShortCode),account_reference:String(body.BillRefNumber??"").slice(0,120)||null,
+    shortcode:String(body.BusinessShortCode),account_reference:String(body.BillRefNumber??body.ThirdPartyTransID??"").slice(0,120)||null,
     phone_number:String(body.MSISDN??"").slice(0,20)||null,amount,currency_code:"KES",
     transaction_time:parseTransactionTime(body.TransTime),matching_status:"unmatched",
     raw_payload:body
    });
    if(insertError&&insertError.code!=="23505")throw insertError;
   }
-  const accountReference=String(body.BillRefNumber??"").trim();
+  const accountReference=String(body.BillRefNumber??body.ThirdPartyTransID??"").trim();
   if(!accountReference)return accepted();
   const {data:sales,error:salesError}=await admin.from("sales").select("id,grand_total,status,location_id")
    .eq("organization_id",account.organization_id).eq("receipt_number",accountReference).limit(2);
