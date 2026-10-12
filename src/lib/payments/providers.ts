@@ -73,7 +73,7 @@ export async function initializeProviderPayment(provider: PaymentProvider, crede
     }
     const digits = input.phone.replace(/[\\s()+-]/g, "");
     const phone = digits.startsWith("0") ? "254" + digits.slice(1) : digits.startsWith("254") ? digits : digits;
-    if (!/^254(?:7|1)\\d{8}$/.test(phone)) throw new Error("Enter a valid Kenyan mobile number, e.g. 0712345678.");
+    if (!/^254(?:7|1)\d{8}$/.test(phone)) throw new Error("Enter a valid Kenyan mobile number, e.g. 0712345678.");
     const sandbox = (credentials.environment ?? "test") === "test";
     const apiBase = sandbox ? "https://sandbox.safaricom.co.ke" : "https://api.safaricom.co.ke";
     const basic = Buffer.from(consumerKey + ":" + consumerSecret).toString("base64");
