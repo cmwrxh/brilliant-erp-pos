@@ -24,6 +24,8 @@ begin
   insert into public.organizations(name,slug,business_model)
   values (trim(organization_name),organization_slug,coalesce(organization_business_model,'retail'))
   returning id into created_id;
+  insert into public.locations(organization_id,name,code,is_active)
+  values (created_id,'Main branch','MAIN',true);
   insert into public.organization_members(organization_id,user_id,role)
   values (created_id,caller_id,'owner');
   return created_id;
