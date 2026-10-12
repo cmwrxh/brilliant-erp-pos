@@ -1,6 +1,6 @@
 -- Run with Supabase CLI: supabase test db
 begin;
-select plan(7);
+select plan(8);
 
 select ok(
   (select count(*) from pg_tables where schemaname='public' and tablename in
@@ -20,6 +20,12 @@ select ok(
     and tablename in ('organizations','organization_members','locations','products','inventory_balances','customers','sales','sale_items','sale_payments','inventory_movements','payment_provider_accounts','provider_transactions','etims_invoices','mpesa_transactions','offline_sync_receipts')
     and (coalesce(qual,'') ilike '%is_organization_member%' or coalesce(with_check,'') ilike '%is_organization_member%')) = 15,
   'Every tenant business table has a membership-scoped RLS policy'
+);
+
+select ok(
+  (select count(*) from pg_policies where schemaname='public' and policyname='Tenant read boundary' and cmd='SELECT') = 15
+  and not exists(select 1 from pg_policies where schemaname='public' and policyname='Tenant boundary tenant_id' and cmd='ALL'),
+  'tenant boundary policies are read-only and do not grant blanket write access'
 );
 
 select ok(
