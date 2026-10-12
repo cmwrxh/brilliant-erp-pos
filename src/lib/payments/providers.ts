@@ -24,7 +24,7 @@ async function postJson(url: string, token: string, body: unknown, headers: Reco
     cache: "no-store",
     signal: AbortSignal.timeout(15000),
   });
-  const json = await response.json().catch(() => ({})) as Record<string, any>;
+  const json = await response.json().catch(() => ({})) as { message?: unknown; status?: unknown; data?: { link?: unknown; authorization_url?: unknown; reference?: unknown } };
   if (!response.ok) throw new Error(typeof json.message === "string" ? json.message : "Payment provider request failed.");
   return json;
 }
@@ -39,7 +39,7 @@ export async function initializeProviderPayment(provider: PaymentProvider, crede
       meta: input.metadata,
       customizations: { title: "Brilliant ERP/POS", description: "Business transaction" },
     });
-    const link = result?.data?.link;
+    const link = result.data?.link;
     if (typeof link !== "string" || !link.startsWith("https://")) throw new Error("Flutterwave did not return a valid checkout URL.");
     return { checkoutUrl: link, providerReference: input.reference };
   }
@@ -49,9 +49,9 @@ export async function initializeProviderPayment(provider: PaymentProvider, crede
       email: input.email, amount: Math.round(input.amount * 100), currency: input.currency,
       reference: input.reference, callback_url: input.callbackUrl, metadata: input.metadata,
     });
-    const link = result?.data?.authorization_url;
-    if (result?.status !== true || typeof link !== "string" || !link.startsWith("https://")) throw new Error("Paystack did not return a valid checkout URL.");
-    return { checkoutUrl: link, providerReference: result?.data?.reference };
+    const link = result.data?.authorization_url;
+    if (result.status !== true || typeof link !== "string" || !link.startsWith("https://")) throw new Error("Paystack did not return a valid checkout URL.");
+    return { checkoutUrl: link, providerReference: typeof result.data?.reference === "string" ? result.data.reference : undefined };
   }
   if (provider === "airtel_money") {
     if (!credentials.clientId || !credentials.clientSecret || !credentials.country || !credentials.currency) {
