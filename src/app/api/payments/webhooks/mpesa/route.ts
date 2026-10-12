@@ -58,11 +58,12 @@ export async function POST(request:NextRequest){
   const amount=Number(valueOf(items,"Amount"));
   const receipt=String(valueOf(items,"MpesaReceiptNumber")??"");
   const phone=String(valueOf(items,"PhoneNumber")??"");
-  if(!Number.isFinite(amount)||amount!==Number(transaction.amount)||!receipt||!/^\\d{10,15}$/.test(phone)){
+  if(!Number.isFinite(amount)||amount!==Number(transaction.amount)||!receipt||!/^\d{10,15}$/.test(phone)){
    await admin.from("provider_transactions").update({status:"failed",provider_payload:payload,callback_received_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",transaction.id).eq("status","pending");
    return NextResponse.json({ResultCode:0,ResultDesc:"Callback amount or metadata did not match the initiated payment."});
   }
-  await confirmWithDaraja(admin,transaction.organization_id,callback.CheckoutRequestID);\n  const {data:completed,error:completionError}=await admin.rpc("complete_sale",{
+  await confirmWithDaraja(admin,transaction.organization_id,callback.CheckoutRequestID);
+  const {data:completed,error:completionError}=await admin.rpc("complete_sale",{
    p_organization_id:transaction.organization_id,p_sale_id:transaction.sale_id,
    p_method:"mpesa",p_amount:amount,p_provider_reference:receipt
   });
