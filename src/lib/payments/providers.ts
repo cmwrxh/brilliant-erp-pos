@@ -14,7 +14,7 @@ export type InitializePaymentInput = {
   metadata: Record<string, string>;
 };
 
-export type InitializePaymentResult = { checkoutUrl: string; providerReference?: string };
+export type InitializePaymentResult = { checkoutUrl?: string; providerReference?: string; message?: string };
 
 async function postJson(url: string, token: string, body: unknown, headers: Record<string, string> = {}) {
   const response = await fetch(url, {
@@ -62,5 +62,54 @@ export async function initializeProviderPayment(provider: PaymentProvider, crede
     // require a configured merchant API integration before initiating a real charge.
     throw new Error("Airtel Money credentials are saved, but collection initiation is not enabled until the merchant account's country-specific API contract is verified.");
   }
-  throw new Error("M-Pesa collection is not configured yet.");
+  if (provider === "mpesa") {
+    const { consumerKey, consumerSecret, shortcode, passkey } = credentials;
+    if (!consumerKey || !consumerSecret || !shortcode || !passkey) {
+      throw new Error("M-PESA consumer key, consumer secret, shortcode and Lipa Na M-PESA passkey are required.");
+    }
+    if (!input.phone) throw new Error("Enter the customer's Kenyan mobile number for M-PESA STK Push.");
+    if (!Number.isInteger(input.amount) || input.amount < 1) {
+      throw new Error("M-PESA STK Push requires a whole KES amount of at least KES 1. Adjust the sale total before requesting payment.");
+    }
+    const digits = input.phone.replace(/[\\s()+-]/g, "");
+    const phone = digits.startsWith("0") ? "254" + digits.slice(1) : digits.startsWith("254") ? digits : digits;
+    if (!/^254(?:7|1)\\d{8}$/.test(phone)) throw new Error("Enter a valid Kenyan mobile number, e.g. 0712345678.");
+    const sandbox = (credentials.environment ?? "test") === "test";
+    const apiBase = sandbox ? "https://sandbox.safaricom.co.ke" : "https://api.safaricom.co.ke";
+    const basic = Buffer.from(consumerKey + ":" + consumerSecret).toString("base64");
+    const tokenResponse = await fetch(apiBase + "/oauth/v1/generate?grant_type=client_credentials", {
+      headers: { Authorization: "Basic " + basic }, cache: "no-store", signal: AbortSignal.timeout(15000),
+    });
+    const tokenJson = await tokenResponse.json().catch(() => ({})) as { access_token?: string; errorMessage?: string };
+    if (!tokenResponse.ok || !tokenJson.access_token) throw new Error("Could not authenticate with Safaricom Daraja. Check sandbox credentials and environment.");
+    const timestamp = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Africa/Nairobi", year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
+    }).format(new Date()).replace(/[^0-9]/g, "");
+    const password = Buffer.from(shortcode + passkey + timestamp).toString("base64");
+    const callback = new URL(input.callbackUrl);
+    const accountType = credentials.accountType === "CustomerBuyGoodsOnline" ? "CustomerBuyGoodsOnline" : "CustomerPayBillOnline";
+    const requestBody = {
+      BusinessShortCode: shortcode, Password: password, Timestamp: timestamp,
+      TransactionType: accountType, Amount: Math.round(input.amount), PartyA: phone,
+      PartyB: shortcode, PhoneNumber: phone, CallBackURL: callback.toString(),
+      AccountReference: input.reference.slice(0, 12), TransactionDesc: "Brilliant POS sale",
+    };
+    const response = await fetch(apiBase + "/mpesa/stkpush/v1/processrequest", {
+      method: "POST", headers: { Authorization: "Bearer " + tokenJson.access_token, "Content-Type": "application/json" },
+      body: JSON.stringify(requestBody), cache: "no-store", signal: AbortSignal.timeout(20000),
+    });
+    const result = await response.json().catch(() => ({})) as {
+      ResponseCode?: string; ResponseDescription?: string; errorMessage?: string;
+      CheckoutRequestID?: string; MerchantRequestID?: string; CustomerMessage?: string;
+    };
+    if (!response.ok || result.ResponseCode !== "0" || !result.CheckoutRequestID) {
+      throw new Error(result.errorMessage ?? result.ResponseDescription ?? "Safaricom did not accept the STK Push request.");
+    }
+    return {
+      providerReference: result.CheckoutRequestID,
+      message: result.CustomerMessage ?? "M-PESA payment prompt sent. Ask the customer to enter their PIN on their phone.",
+    };
+  }
+  throw new Error("Unsupported payment provider.");
 }
