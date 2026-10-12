@@ -26,7 +26,7 @@ async function confirmWithDaraja(admin:ReturnType<typeof createSupabaseAdminClie
  if(!queryResponse.ok||query.ResponseCode!=="0"||String(query.ResultCode)!=="0")throw new Error("Daraja transaction query has not confirmed a successful payment.");
  return query;
 }
-\nfunction valueOf(items:CallbackItem[],name:string){return items.find(item=>item.Name===name)?.Value;}
+function valueOf(items:CallbackItem[],name:string){return items.find(item=>item.Name===name)?.Value;}
 function safeEqualHex(a:string,b:string){try{const left=Buffer.from(a,"hex");const right=Buffer.from(b,"hex");return left.length===right.length&&left.length>0&&timingSafeEqual(left,right);}catch{return false;}}
 
 export async function POST(request:NextRequest){
