@@ -35,7 +35,7 @@ export async function verifyAndCompletePayment(provider:"flutterwave"|"paystack"
   await admin.from("provider_transactions").update({status:"failed",provider_payload:{reason:"verification_mismatch"},updated_at:new Date().toISOString()}).eq("id",transaction.id);
   throw new Error("Verified payment amount, currency or reference did not match the sale.");
  }
- const {error:completeError}=await admin.rpc("complete_sale",{p_organization_id:transaction.organization_id,p_sale_id:transaction.sale_id,p_method:"card",p_amount:transaction.amount,p_provider_reference:String(providerId??providerReference)});
+ const {error:completeError}=await admin.rpc("complete_sale",{p_organization_id:transaction.organization_id,p_sale_id:transaction.sale_id,p_method:provider,p_amount:transaction.amount,p_provider_reference:String(providerId??providerReference)});
  if(completeError)throw completeError;
  const {error:updateError}=await admin.from("provider_transactions").update({status:"succeeded",provider_reference:String(providerId??providerReference),provider_payload:{verified:true,provider},updated_at:new Date().toISOString()}).eq("id",transaction.id);
  if(updateError)throw updateError;
