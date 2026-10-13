@@ -151,7 +151,15 @@ begin
     raise exception 'Only a non-empty invoice draft with a positive total can be issued.' using errcode='23514';
   end if;
   select id into ar_account from public.chart_of_accounts where organization_id=p_organization_id and system_key='accounts_receivable' and is_active;
-  select id into revenue_account from public.chart_of_accounts where organization_id=p_organization_id and system_key='retail_sales' and is_active;
+  select coa.id into revenue_account
+    from public.chart_of_accounts coa
+    join public.organizations o on o.id=coa.organization_id
+    where coa.organization_id=p_organization_id and coa.is_active
+      and coa.system_key=case o.business_model
+        when 'wholesale' then 'wholesale_sales'
+        when 'services' then 'other_income'
+        else 'retail_sales'
+      end;
   select id into vat_account from public.chart_of_accounts where organization_id=p_organization_id and system_key='vat_output' and is_active;
   if ar_account is null or revenue_account is null or (doc.tax_total>0 and vat_account is null) then
     raise exception 'Initialize Accounts Receivable, sales revenue and output VAT accounts first.' using errcode='23514';
