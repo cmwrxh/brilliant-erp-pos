@@ -102,8 +102,8 @@ select ok(
 insert into public.document_payments(organization_id,document_id,tender_type,idempotency_key,amount)
   select organization_id,document_id,'mpesa','pay-contract-key',50 from _document_test_context;
 select throws_ok(
-  $insert into public.document_payments(organization_id,document_id,tender_type,idempotency_key,amount)
-    select organization_id,document_id,'mpesa','pay-contract-key',50 from _document_test_context$,
+  $q$insert into public.document_payments(organization_id,document_id,tender_type,idempotency_key,amount)
+    select organization_id,document_id,'mpesa','pay-contract-key',50 from _document_test_context$q$,
   '23505', null, 'duplicate payment idempotency key is rejected'
 );
 
