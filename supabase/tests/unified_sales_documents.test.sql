@@ -125,42 +125,33 @@ select ok(
 );
 
 
-create temporary table _document_rls_context(organization_a uuid, organization_b uuid, user_id uuid) on commit drop;
-do $
-declare
-  org_a uuid := gen_random_uuid();
-  org_b uuid := gen_random_uuid();
-  user_a uuid := gen_random_uuid();
-begin
-  insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at)
-    values(user_a,'authenticated','authenticated','document-rls-'||substr(replace(user_a::text,'-',''),1,12)||'@example.invalid','',now())
-    on conflict (id) do nothing;
-  insert into public.organizations(id,name,slug) values
-    (org_a,'Document RLS A','doc-rls-a-'||substr(replace(org_a::text,'-',''),1,12)),
-    (org_b,'Document RLS B','doc-rls-b-'||substr(replace(org_b::text,'-',''),1,12));
-  insert into public.organization_members(organization_id,user_id,role)
-    values(org_a,user_a,'owner');
-  insert into public.sales_documents(organization_id,document_number,document_type,status)
-    values(org_a,'RLS-A-INVOICE','invoice','issued'),
-          (org_b,'RLS-B-INVOICE','invoice','issued');
-  insert into _document_rls_context values(org_a,org_b,user_a);
-end $;
+insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at)
+  values('33333333-3333-4333-8333-333333333333','authenticated','authenticated','document-rls@example.invalid','',now())
+  on conflict (id) do nothing;
+insert into public.organizations(id,name,slug) values
+  ('cccccccc-cccc-4ccc-8ccc-cccccccccccc','Document RLS A','doc-rls-a'),
+  ('dddddddd-dddd-4ddd-8ddd-dddddddddddd','Document RLS B','doc-rls-b');
+insert into public.organization_members(organization_id,user_id,role)
+  values('cccccccc-cccc-4ccc-8ccc-cccccccccccc','33333333-3333-4333-8333-333333333333','owner');
+insert into public.sales_documents(organization_id,document_number,document_type,status)
+  values('cccccccc-cccc-4ccc-8ccc-cccccccccccc','RLS-A-INVOICE','invoice','issued'),
+        ('dddddddd-dddd-4ddd-8ddd-dddddddddddd','RLS-B-INVOICE','invoice','issued');
 
 set local role authenticated;
-select set_config('request.jwt.claim.sub',(select user_id::text from _document_rls_context),true);
+select set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',true);
 select is(
   (select count(*)::int from public.sales_documents),
   1,
   'authenticated tenant member sees only their own document'
 );
 select is(
-  (select count(*)::int from public.sales_documents where organization_id=(select organization_b from _document_rls_context)),
+  (select count(*)::int from public.sales_documents where organization_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd'),
   0,
   'authenticated tenant member cannot read another tenant document'
 );
 select throws_ok(
   $q$insert into public.sales_documents(organization_id,document_number,document_type)
-     values ((select organization_a from _document_rls_context),'RLS-DIRECT-WRITE','invoice')$q$,
+     values ('cccccccc-cccc-4ccc-8ccc-cccccccccccc','RLS-DIRECT-WRITE','invoice')$q$,
   '42501', null, 'authenticated clients cannot directly create financial documents'
 );
 reset role;
