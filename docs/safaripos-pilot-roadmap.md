@@ -1,75 +1,74 @@
 # SafariPOS Pilot Roadmap and Release Gates
 
-**Current release posture:** Existing foundation is deployed, but this is not yet a certified live-trading pilot. Do not merge this branch into main or enable live financial statements until the release gates below pass.
+**Release posture:** Development source is `foundation/bootstrap`. This is not yet a certified live-trading pilot. Verify the deployed commit before relying on new code. Reconcile the divergent `main` and development branch histories and review CI before promotion.
 
-## Current baseline (verified 2026-10-13)
+## Current baseline (2026-10-13)
 
-- Development source: foundation/bootstrap. Coolify previously reported a successful deployment; the Payments page was retested and works.
-- GitHub default branch: main. The open PR #1 is not merged. GitHub compare reports foundation/bootstrap and main have diverged (development branch 151 commits ahead and 2 behind at the time checked); reconcile history and review CI before any merge.
-- Supabase project has migrations 0001–0016 recorded as applied. Migrations 0014–0015 add the ledger foundation and tighter permissions; migration 0016 adds moving-average valuation and completed-sale journal posting. The accounting pgTAP scripts exercise journal immutability, sale posting and inventory-to-GL reconciliation.
-- Existing RLS, checkout, inventory movement, payment callback and offline/eTIMS schema foundations exist, but several integrations have not passed end-to-end acceptance.
-- Accounting foundation is now present (migrations 0014–0016): tenant-scoped accounts, journal headers/lines, balance-at-posting guard, source idempotency, immutable posted journals, reversal/period RPCs, audit log, moving-average inventory valuation, valued receipts and completed-sale revenue/VAT/COGS posting. Other source adapters, full subledger reconciliations, retained-earnings close, statements, exports and complete acceptance suite remain.
-- Branding changes and CPA policy draft are being prepared on the separate safaripos/accounting-plan branch. This branch is not the configured Coolify source and is not yet deployed.
+- Supabase migrations 0001–0016 are recorded as applied. Migrations 0014–0016 add accounting foundations: tenant-scoped accounts, journals, balance guards, idempotent posting, immutable posted journals, audit/reversal/period functions, moving-average inventory valuation, valued receipts, and completed-sale revenue/VAT/COGS posting.
+- Accounting remains **partial**. Supplier bills/AP, customer credit sales and allocations, refunds/credit notes, M-PESA fees and settlement reconciliation, expenses, opening balances, equity/drawings, cash-up differences, stocktake/expiry write-offs, fixed assets, retained earnings close, ledger reports, exports and the complete acceptance suite remain.
+- RLS/security, M-PESA, offline-first and eTIMS are all **partial** pending full end-to-end acceptance.
+- Supabase Auth email templates are configured externally and still need a separate SafariPOS branding update.
 
-## Five workstreams and release milestones
+## 1. Tenant isolation and security — PARTIAL
 
-### 1. Tenant isolation and security
-**Current:** Partial.
-**Milestone:** Extend database tests across every tenant-owned table, RPC, export, audit record and service-role path; test two businesses with opposing access; verify role permissions and RLS under authenticated users.
-**Acceptance:** Tenant A cannot read, infer, post, mutate, or export Tenant B data through UI, REST, RPC, direct SQL role or export endpoints; tenant tests run automatically in CI; no cross-tenant foreign-key path; secrets never reach browser bundles.
+Test every tenant-owned table, RPC, export, audit record and service-role path using at least two businesses with opposing access. Acceptance: no cross-tenant read, inference, posting, mutation or export; automated regression tests; secrets absent from browser bundles.
 
-### 2. M-PESA
-**Current:** Partial.
-**Milestone:** Use public HTTPS Daraja sandbox endpoints; test STK initiation, success, failure, timeout, duplicate callback, C2B validation/confirmation, wrong amount, unmatched receipt, refund/reversal, provider fee and settlement matching.
-**Acceptance:** Every provider event is idempotent; no callback alone can duplicate a sale; unmatched payments enter review; gross receipts, fees, refunds and net settlements reconcile to M-PESA clearing; auditable operator workflow exists; production remains disabled until merchant credentials and operational sign-off.
+## 2. M-PESA — PARTIAL
 
-### 3. Offline-first POS
-**Current:** Partial foundation only; offline checkout is not enabled.
-**Milestone:** Add IndexedDB product/price cache and durable outbox, stable client operation IDs, reconnect sync API, retry/conflict UX, duplicate protection and stock policy.
-**Acceptance:** In airplane mode, a cashier can only complete the approved offline workflow; queued receipts are visibly provisional until synced; reconnect/retry does not duplicate sales/payments/stock movements; conflicts and expired/stale prices are surfaced; stock policy is enforced; tenant data is isolated on shared devices. Decide whether payment types beyond cash are forbidden offline.
+Test Daraja sandbox STK initiation, success/failure/timeout, duplicate callbacks, C2B validation/confirmation, wrong amounts, unmatched receipts, refunds, provider fees and settlement matching. Acceptance: idempotent events; no duplicate sales; unmatched payments reviewable; gross receipts, fees, refunds and net settlements reconcile to M-PESA clearing. Keep production disabled until credentials and operational sign-off.
 
-### 4. KRA eTIMS
-**Current:** Partial schema/outbox foundation; not connected/certified.
-**Milestone:** Obtain the current KRA spec and onboarding path, choose OSCU/VSCU, implement taxpayer/device initialization and tax-item mapping, durable invoice submission/retry, status display and credit notes linked to original SafariPOS invoices.
-**Acceptance:** KRA sandbox test cases pass; accepted invoice/control-unit references are stored; rejects remain reviewable/retryable; retries do not duplicate ledger posting; credit note and original invoice linkage is correct; taxpayer/integrator approval and production credentials are documented before live invoicing.
+## 3. Offline-first POS — POLICY LOCKED; IMPLEMENTATION NOT COMPLETE
 
-### 5. Accounting ledger
-**Current:** Not started in schema.
-**Milestone A:** CPA approves account template, accrual recognition, VAT, weighted-average costing, opening-balance and period-close policy.
-**Milestone B:** Add tenant-specific chart of accounts, journals/lines, immutable posting function, idempotent source posting, reversals, audit trail, period lock, retained earnings and subledger/control-account mappings.
-**Milestone C:** Connect verified POS/inventory/payment/expense/supplier/asset events; implement AR/AP, inventory valuation, bank and M-PESA reconciliation, VAT reports and CSV/XLSX/PDF exports.
-**Acceptance:** Every automated accounting test in docs/safaripos-accounting-cpa-review.md passes; no formal P&L/balance sheet before then; all reports derive from posted ledger lines; export matches the UI; CPA signs off on test results and posting rules.
+**Approved policy: cash-only provisional sales while offline.** Permit checkout only with cash when disconnected. Block M-PESA, card, bank transfer, credit sales, customer-account payments and all other non-cash tenders offline.
+
+Required behaviour:
+- Use a durable local outbox and unique client operation ID for every offline sale.
+- Clearly label receipts **PROVISIONAL — NOT SYNCED**. Never imply that an offline sale is server-confirmed, ledger-posted or eTIMS-accepted.
+- Preserve queued sales across refreshes/restarts. Never silently discard them; retries must be idempotent.
+- Use tenant-scoped cached catalogue data and clear/isolate it on logout or tenant switch.
+- On reconnect, validate on the server, which is authoritative for prices, stock, tax settings and posting eligibility.
+- Enforce the default negative-stock block policy during reconciliation. Preserve conflicts for review; never silently rewrite or duplicate a sale.
+- Do not label provisional receipts as official eTIMS tax invoices. eTIMS submission must wait until connected and the integration is approved.
+- Keep offline checkout disabled until the workflow and acceptance tests pass.
+
+Acceptance: cash-only works in airplane mode and survives restart; non-cash tenders are unavailable; stable IDs and retries do not duplicate sales, payments, stock movements or journals; stock conflicts are visible/auditable; tenant isolation and logout cleanup pass.
+
+## 4. KRA eTIMS — PARTIAL
+
+Obtain current KRA specifications and onboarding path; choose OSCU/VSCU; implement taxpayer/device setup, tax-item mapping, durable submission/retry, status display and credit notes linked to original invoices. Keep live issuance disabled until sandbox acceptance, required approvals and production credentials are documented.
+
+## 5. Accounting — PARTIAL
+
+Implemented foundation: accrual settings, tenant-scoped chart of accounts, moving-weighted-average valuation, valued stock receipts, completed-sale revenue/output VAT/COGS journals, balanced immutable postings, idempotency, audit, reversal/period RPCs and privilege guards.
+
+Remaining: CPA policy approval; AP and AR subledgers; refunds/credit notes; product VAT codes and input VAT; M-PESA fee/refund/settlement posting; expenses; opening balances; equity/drawings; cash-up over/short; stocktake and expiry write-offs; fixed assets/depreciation; retained earnings close; ledger-based trial balance, GL/journal register, AR/AP ageing, VAT and payment reconciliation; CSV/XLSX/PDF exports; full automated acceptance suite.
+
+Acceptance: balanced journals/trial balance; inventory valuation equals inventory control; customer balances equal AR; supplier balances equal AP; M-PESA receipts/fees/refunds/settlements reconcile; reversals retain audit history; closed periods reject backdated postings; tenant isolation passes; exports match reports. Do not add formal P&L or balance sheet until the full suite passes and a Kenyan CPA reviews the rules/results.
 
 ## Brand and pilot scope
 
-- Product-facing name: SafariPOS.
-- Pilot scope: POS, inventory, M-PESA and eTIMS.
-- Do not call the product a full ERP until the accounting ledger has passed acceptance.
-- Customer-facing receipt and in-app labels use SafariPOS. Current code has no custom outbound email-sending implementation; Supabase Auth confirmation emails are configured in the Supabase dashboard and require a separate template update before brand migration is complete.
-- The existing report page is a sales summary, not a ledger-based P&L. No formal balance sheet should be added until the ledger acceptance gate passes.
+- Product-facing name: SafariPOS. Pilot scope: POS, inventory, M-PESA and eTIMS.
+- Do not call it a full ERP until accounting acceptance passes.
+- Current sales summary is not a ledger-based P&L. Do not add formal financial statements before acceptance.
+- Update Supabase Auth email templates separately.
 
-## Sequencing and reporting
+## Sequence
 
-1. Prepare brand and CPA policy docs on a feature branch; confirm every old customer-facing label and identify externally configured email templates.
-2. Reconcile branch histories and CI; merge the reviewed pilot-scope/brand change into the development deployment branch only after review.
-3. Finish tenant isolation regression tests and security review.
-4. Finish M-PESA sandbox end-to-end and reconciliation.
-5. Implement and test eTIMS in KRA sandbox once required onboarding/specification is available.
-6. Implement offline-first checkout behind a feature flag; test retries, conflicts and device isolation.
-7. Obtain CPA policy approval, then implement the ledger in small migrations and tested increments. Enable formal statements only after all accounting acceptance tests pass.
-8. Promote the tested release from development to main, configure HTTPS/domain and production secrets, run smoke tests, and enable live features only after each external approval.
+1. Finish tenant-isolation/security tests.
+2. Complete M-PESA sandbox and reconciliation.
+3. Complete eTIMS sandbox/onboarding work when the required specification is available.
+4. Implement cash-only provisional offline checkout behind a feature flag and pass the tests above.
+5. Obtain CPA approval; implement remaining accounting subledgers/reports and acceptance tests.
+6. Reconcile branches, pass CI, verify Coolify deployment, then promote to `main` and enable live features only after required approvals.
 
-## Decisions and blockers
+## Locked decisions and blockers
 
-**Recommended default:** negative stock blocked; accrual basis; perpetual inventory; moving weighted-average per product/location; immutable posted journals; closed periods locked.
-
-**Needs user/owner decision before pilot design is finalized:**
-- Offline mode: allow cash-only sales while offline, or block all checkout when disconnected? Recommendation: cash-only provisional offline sales, no M-PESA/card offline.
-- Pharmacy support: defer batch/expiry workflows to a separate phase unless pharmacies are part of the first pilot.
-- Branding email: update Supabase Auth email templates manually or provide the approved email copy for a template migration procedure.
-- KRA path: once KRA replies, confirm OSCU vs VSCU and the integrator/onboarding route. Keep live eTIMS issuance disabled until approved.
-- CPA: name a reviewer and agree how they will sign off on account codes, tax rules and sample-month test output.
+- Offline: **cash-only provisional sales; all non-cash tenders blocked.** This decision does not mean offline checkout is already implemented.
+- Negative stock: block by default; show sync conflicts for review.
+- Accounting: accrual basis, perpetual inventory, moving weighted-average per product/location, immutable posted journals, locked closed periods.
+- Confirm whether pharmacy batch/expiry workflows are needed in the first pilot.
+- Update Auth email templates separately; confirm KRA OSCU/VSCU path; obtain named Kenyan CPA review.
 
 ## Release gate
 
-No production claim of accounting compliance, no formal P&L/balance sheet, no live M-PESA collection, no live eTIMS issuance and no offline checkout claims until the relevant workstream acceptance criteria are demonstrated with recorded tests and reproducible demo steps.
+No claims of accounting compliance, no formal P&L/balance sheet, no live M-PESA collection, no live eTIMS issuance, and no offline checkout claims until the relevant acceptance criteria are demonstrated with recorded tests and reproducible demo steps.
