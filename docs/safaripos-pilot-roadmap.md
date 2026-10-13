@@ -6,7 +6,7 @@
 
 - Supabase migrations 0001–0016 are recorded as applied. Migrations 0014–0016 add accounting foundations: tenant-scoped accounts, journals, balance guards, idempotent posting, immutable posted journals, audit/reversal/period functions, moving-average inventory valuation, valued receipts, and completed-sale revenue/VAT/COGS posting.
 - Accounting remains **partial**. Supplier bills/AP, customer credit sales and allocations, refunds/credit notes, M-PESA fees and settlement reconciliation, expenses, opening balances, equity/drawings, cash-up differences, stocktake/expiry write-offs, fixed assets, retained earnings close, ledger reports, exports and the complete acceptance suite remain.
-- RLS/security, M-PESA, offline-first and eTIMS are all **partial** pending full end-to-end acceptance.
+- RLS/security, M-PESA, offline-first and eTIMS are all **partial** pending full end-to-end acceptance. GitHub Actions now includes a disposable local Supabase database job that replays migrations 0001–0016 and runs the pgTAP suite; its first green run is still unverified, so this is not yet a passed CI gate.
 - Supabase Auth email templates are configured externally and still need a separate SafariPOS branding update.
 
 ## 1. Tenant isolation and security — PARTIAL
