@@ -301,7 +301,19 @@ begin
       'Tenant members read '||t,t
     );
   end loop;
-end $$;
+end $;
+
+-- Support-consent records are more sensitive than ordinary business documents.
+drop policy "Tenant members read support_access_grants" on public.support_access_grants;
+create policy "Owners and admins read support access grants" on public.support_access_grants
+for select to authenticated using (
+  exists (
+    select 1 from public.organization_members m
+    where m.organization_id = support_access_grants.organization_id
+      and m.user_id = (select auth.uid())
+      and m.role in ('owner','admin')
+  )
+);
 
 -- Authenticated clients cannot directly mutate the invoice/ledger/support tables.
 -- Service-side orchestration and narrow RPCs will be introduced with their own acceptance tests.
