@@ -22,7 +22,7 @@ export function AccountingManager({ organizationId }: { organizationId: string }
   const [supplierForm, setSupplierForm] = useState({ name: "", code: "", kraPin: "", phone: "", email: "" });
   const [billForm, setBillForm] = useState({ supplierId: "", invoiceNumber: "", billDate: new Date().toISOString().slice(0, 10), dueDate: "", accountCode: "6000", description: "Supplier invoice", netAmount: "", taxAmount: "0" });
   const [paymentBill, setPaymentBill] = useState<Bill | null>(null);
-  const [paymentForm, setPaymentForm] = useState({ amount: "", tenderType: "bank_transfer", reference: "" });
+  const [paymentForm, setPaymentForm] = useState({ amount: "", tenderType: "bank_transfer", reference: "", idempotencyKey: "" });
   const [settlementForm, setSettlementForm] = useState({ reference: "", periodStart: "", periodEnd: "", grossAmount: "", feeAmount: "0", netAmount: "", bankReference: "" });
   const [selectedSettlementId, setSelectedSettlementId] = useState("");
   const [selectedPaymentIds, setSelectedPaymentIds] = useState<string[]>([]);
@@ -79,10 +79,10 @@ export function AccountingManager({ organizationId }: { organizationId: string }
     try {
       const response = await fetch("/api/accounting/suppliers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
         organizationId, action: "pay_bill", billId: paymentBill.id, tenderType: paymentForm.tenderType,
-        amount: Number(paymentForm.amount), providerReference: paymentForm.reference || undefined
+        amount: Number(paymentForm.amount), providerReference: paymentForm.reference || undefined, idempotencyKey: paymentForm.idempotencyKey
       }) });
       const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Could not record supplier payment.");
-      setPaymentBill(null); setPaymentForm({ amount: "", tenderType: "bank_transfer", reference: "" }); setNotice("Supplier payment posted."); await load();
+      setPaymentBill(null); setPaymentForm({ amount: "", tenderType: "bank_transfer", reference: "", idempotencyKey: "" }); setNotice("Supplier payment posted."); await load();
     } catch (e) { setError(e instanceof Error ? e.message : "Could not record supplier payment."); }
     finally { setBusy(false); }
   }
@@ -144,7 +144,7 @@ export function AccountingManager({ organizationId }: { organizationId: string }
       <label className="payment-form-label">Provider / bank reference<input maxLength={120} value={paymentForm.reference} onChange={e => setPaymentForm({ ...paymentForm, reference: e.target.value })} placeholder="Required for M-PESA"/></label>
     </div><div className="modal-actions"><button className="provider-cancel" type="button" onClick={() => setPaymentBill(null)}>Cancel</button><button className="provider-connect primary" disabled={busy}>{busy ? "Posting…" : "Record payment"}</button></div></form>}
     <section className="catalog-table-wrap"><h2 className="section-title"><Building2 size={17}/> Suppliers and payables</h2><div className="catalog-table-scroll"><table><thead><tr><th>SUPPLIER / INVOICE</th><th>BILL DATE</th><th>DUE DATE</th><th>STATUS</th><th>TOTAL</th><th>PAID</th><th>BALANCE</th><th>ACTION</th></tr></thead><tbody>
-      {loading ? <tr><td colSpan={8} className="empty-catalog">Loading supplier accounts…</td></tr> : bills.length ? bills.map(b => <tr key={b.id}><td><strong>{supplierName(b.supplier_id)}</strong><div className="muted">{b.supplier_invoice_number}</div></td><td>{new Date(b.bill_date).toLocaleDateString("en-KE")}</td><td>{b.due_date ? new Date(b.due_date).toLocaleDateString("en-KE") : "—"}</td><td><span className={b.status === "paid" ? "status completed" : "status pending"}>{b.status}</span></td><td>{money(b.total_amount)}</td><td>{money(b.amount_paid)}</td><td>{money(Number(b.total_amount) - Number(b.amount_paid))}</td><td>{b.status !== "paid" && b.status !== "void" ? <button className="provider-connect primary" type="button" onClick={() => { setPaymentBill(b); setPaymentForm({ amount: String(Number(b.total_amount) - Number(b.amount_paid)), tenderType: "bank_transfer", reference: "" }); }}>Pay bill</button> : "—"}</td></tr>) : <tr><td colSpan={8} className="empty-catalog">No supplier bills recorded.</td></tr>}
+      {loading ? <tr><td colSpan={8} className="empty-catalog">Loading supplier accounts…</td></tr> : bills.length ? bills.map(b => <tr key={b.id}><td><strong>{supplierName(b.supplier_id)}</strong><div className="muted">{b.supplier_invoice_number}</div></td><td>{new Date(b.bill_date).toLocaleDateString("en-KE")}</td><td>{b.due_date ? new Date(b.due_date).toLocaleDateString("en-KE") : "—"}</td><td><span className={b.status === "paid" ? "status completed" : "status pending"}>{b.status}</span></td><td>{money(b.total_amount)}</td><td>{money(b.amount_paid)}</td><td>{money(Number(b.total_amount) - Number(b.amount_paid))}</td><td>{b.status !== "paid" && b.status !== "void" ? <button className="provider-connect primary" type="button" onClick={() => { setPaymentBill(b); setPaymentForm({ amount: String(Number(b.total_amount) - Number(b.amount_paid)), tenderType: "bank_transfer", reference: "", idempotencyKey: "supplier-payment:" + crypto.randomUUID() }); }}>Pay bill</button> : "—"}</td></tr>) : <tr><td colSpan={8} className="empty-catalog">No supplier bills recorded.</td></tr>}
     </tbody></table></div><div className="table-footer"><span>{suppliers.length} suppliers · {bills.length} bills</span><span>Supplier bills post into the general ledger.</span></div></section>
     <section className="product-form"><h2><Wallet size={17}/> M-PESA settlement reconciliation</h2><p className="muted">Record the actual settlement statement first, then match confirmed customer receipts. Gross minus fees must equal net.</p>
       <form onSubmit={submitSettlement}><div className="product-form-grid">
