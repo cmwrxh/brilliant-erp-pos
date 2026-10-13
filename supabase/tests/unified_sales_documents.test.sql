@@ -1,6 +1,6 @@
 create extension if not exists pgtap with schema extensions;
 begin;
-select plan(24);
+select plan(27);
 
 select has_table('public','sales_documents','one shared sales/invoice/credit-note header exists');
 select has_table('public','sales_document_lines','document line snapshots exist');
@@ -123,6 +123,47 @@ select ok(
   and exists(select 1 from pg_indexes where schemaname='public' and indexname='recurring_invoice_due_idx'),
   'retry and scheduled-work queues have supporting partial indexes'
 );
+
+
+create temporary table _document_rls_context(organization_a uuid, organization_b uuid, user_id uuid) on commit drop;
+do $
+declare
+  org_a uuid := gen_random_uuid();
+  org_b uuid := gen_random_uuid();
+  user_a uuid := gen_random_uuid();
+begin
+  insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at)
+    values(user_a,'authenticated','authenticated','document-rls-'||substr(replace(user_a::text,'-',''),1,12)||'@example.invalid','',now())
+    on conflict (id) do nothing;
+  insert into public.organizations(id,name,slug) values
+    (org_a,'Document RLS A','doc-rls-a-'||substr(replace(org_a::text,'-',''),1,12)),
+    (org_b,'Document RLS B','doc-rls-b-'||substr(replace(org_b::text,'-',''),1,12));
+  insert into public.organization_members(organization_id,user_id,role)
+    values(org_a,user_a,'owner');
+  insert into public.sales_documents(organization_id,document_number,document_type,status)
+    values(org_a,'RLS-A-INVOICE','invoice','issued'),
+          (org_b,'RLS-B-INVOICE','invoice','issued');
+  insert into _document_rls_context values(org_a,org_b,user_a);
+end $;
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub',(select user_id::text from _document_rls_context),true);
+select is(
+  (select count(*)::int from public.sales_documents),
+  1,
+  'authenticated tenant member sees only their own document'
+);
+select is(
+  (select count(*)::int from public.sales_documents where organization_id=(select organization_b from _document_rls_context)),
+  0,
+  'authenticated tenant member cannot read another tenant document'
+);
+select throws_ok(
+  $q$insert into public.sales_documents(organization_id,document_number,document_type)
+     values ((select organization_a from _document_rls_context),'RLS-DIRECT-WRITE','invoice')$q$,
+  '42501', null, 'authenticated clients cannot directly create financial documents'
+);
+reset role;
 
 select * from finish();
 rollback;
