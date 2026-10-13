@@ -8,7 +8,7 @@ type ProductRef={name:string;sku:string;unit:string};
 type LocationRef={name:string;code:string};
 type Relation<T>=T|T[]|null;
 type InventoryRow={quantity:number|string;reorder_level:number|string;products:Relation<ProductRef>;locations:Relation<LocationRef>};
-type Option={id:string;name:string;sku?:string};
+type Option={id:string;name:string;sku?:string;cost_price?:number|string};
 
 export default async function InventoryPage(){
  let user=null;
