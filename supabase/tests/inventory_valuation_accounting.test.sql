@@ -33,7 +33,7 @@ do $$
 declare
   org_id uuid := gen_random_uuid();
   loc_id uuid := gen_random_uuid();
-  product_id uuid := gen_random_uuid();
+  v_product_id uuid := gen_random_uuid();
   sale_id uuid := gen_random_uuid();
   inventory_account uuid;
   capital_account uuid;
@@ -41,11 +41,11 @@ begin
   insert into public.organizations(id,name,slug) values(org_id,'Accounting Sale Test','acct-sale-'||substr(replace(org_id::text,'-',''),1,12));
   insert into public.locations(id,organization_id,name,code) values(loc_id,org_id,'Test branch','MAIN');
   insert into public.products(id,organization_id,sku,name,unit,cost_price,selling_price,tax_rate)
-    values(product_id,org_id,'TESTSKU','Test item','each',100,500,16);
+    values(v_product_id,org_id,'TESTSKU','Test item','each',100,500,16);
   insert into public.inventory_balances(organization_id,location_id,product_id,quantity,reorder_level)
-    values(org_id,loc_id,product_id,5,0);
+    values(org_id,loc_id,v_product_id,5,0);
   insert into public.inventory_valuation_balances(organization_id,location_id,product_id,quantity,carrying_value,average_unit_cost)
-    values(org_id,loc_id,product_id,5,500,100);
+    values(org_id,loc_id,v_product_id,5,500,100);
   select id into inventory_account from public.chart_of_accounts where organization_id=org_id and system_key='inventory';
   select id into capital_account from public.chart_of_accounts where organization_id=org_id and system_key='owner_capital';
   perform public.post_accounting_journal_internal(org_id,current_date,'Opening inventory test','opening',gen_random_uuid(),'opening',
@@ -56,13 +56,13 @@ begin
   insert into public.sales(id,organization_id,location_id,receipt_number,currency_code,subtotal,discount_total,tax_total,grand_total,status)
     values(sale_id,org_id,loc_id,'TEST-RECEIPT','KES',1000,0,160,1160,'draft');
   insert into public.sale_items(organization_id,sale_id,product_id,product_name_snapshot,sku_snapshot,quantity,unit_price,discount_amount,tax_amount,line_total)
-    values(org_id,sale_id,product_id,'Test item','TESTSKU',2,500,0,160,1160);
+    values(org_id,sale_id,v_product_id,'Test item','TESTSKU',2,500,0,160,1160);
   insert into public.sale_payments(organization_id,sale_id,method,amount,status)
     values(org_id,sale_id,'cash',1160,'recorded');
   update public.inventory_balances set quantity=3,updated_at=now()
-    where inventory_balances.organization_id=org_id and inventory_balances.location_id=loc_id and inventory_balances.product_id=product_id;
+    where inventory_balances.organization_id=org_id and inventory_balances.location_id=loc_id and inventory_balances.product_id=v_product_id;
   insert into public.inventory_movements(organization_id,location_id,product_id,movement_type,quantity_delta,quantity_before,quantity_after,reference_type,reference_id)
-    values(org_id,loc_id,product_id,'sale',-2,5,3,'sale',sale_id);
+    values(org_id,loc_id,v_product_id,'sale',-2,5,3,'sale',sale_id);
   update public.sales set status='completed' where id=sale_id and organization_id=org_id;
   insert into _safaripos_accounting_test_context values(org_id,sale_id);
 end $$;
