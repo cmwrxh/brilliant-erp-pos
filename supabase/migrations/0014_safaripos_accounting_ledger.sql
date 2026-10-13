@@ -118,7 +118,7 @@ begin
   values(target_org,TG_TABLE_NAME,target_id,TG_OP,auth.uid(),
     case when TG_OP in ('UPDATE','DELETE') then to_jsonb(OLD) else null end,
     case when TG_OP in ('INSERT','UPDATE') then to_jsonb(NEW) else null end);
-  return case when TG_OP='DELETE' then OLD else NEW end;
+  if TG_OP='DELETE' then return OLD; end if; return NEW;
 end;
 $$;
 
@@ -139,7 +139,7 @@ begin
         raise exception 'Journal must contain at least two lines and equal debit/credit totals.' using errcode='23514';
       end if;
     end if;
-    return case when TG_OP='DELETE' then OLD else NEW end;
+    if TG_OP='DELETE' then return OLD; end if; return NEW;
   end if;
   target_id := case when TG_OP='INSERT' then NEW.journal_entry_id else OLD.journal_entry_id end;
   select status into target_status from public.journal_entries where id=target_id;
@@ -148,7 +148,7 @@ begin
     select status into target_status from public.journal_entries where id=NEW.journal_entry_id;
     if target_status in ('posted','reversed') then raise exception 'Posted journal lines are immutable.' using errcode='55000'; end if;
   end if;
-  return case when TG_OP='DELETE' then OLD else NEW end;
+  if TG_OP='DELETE' then return OLD; end if; return NEW;
 end;
 $$;
 
@@ -178,7 +178,7 @@ begin
     raise exception 'System account code, type and control mapping are protected.' using errcode='55000';
   end if;
   if TG_OP='UPDATE' then NEW.updated_at := now(); end if;
-  return case when TG_OP='DELETE' then OLD else NEW end;
+  if TG_OP='DELETE' then return OLD; end if; return NEW;
 end;
 $$;
 
@@ -382,3 +382,72 @@ revoke all on function public.close_accounting_period(uuid,uuid,text) from publi
 grant execute on function public.close_accounting_period(uuid,uuid,text) to authenticated;
 
 revoke insert,update,delete on public.accounting_periods from anon,authenticated;
+
+
+create or replace function public.create_accounting_period(
+  p_organization_id uuid,
+  p_period_name text,
+  p_starts_on date,
+  p_ends_on date
+) returns uuid language plpgsql security definer set search_path = ''
+as $$
+declare caller uuid := auth.uid(); period_id uuid;
+begin
+  if caller is null or not exists(select 1 from public.organization_members m where m.organization_id=p_organization_id and m.user_id=caller and m.role in ('owner','admin')) then
+    raise exception 'Only a workspace owner/admin can create accounting periods.' using errcode='42501';
+  end if;
+  if p_starts_on is null or p_ends_on is null or p_ends_on<p_starts_on or length(trim(coalesce(p_period_name,'')))<2 then
+    raise exception 'A valid period name, start date and end date are required.' using errcode='22023';
+  end if;
+  if exists(select 1 from public.accounting_periods p where p.organization_id=p_organization_id and daterange(p.starts_on,p.ends_on,'[]') && daterange(p_starts_on,p_ends_on,'[]')) then
+    raise exception 'Accounting periods for one business cannot overlap.' using errcode='23514';
+  end if;
+  insert into public.accounting_periods(organization_id,period_name,starts_on,ends_on)
+  values(p_organization_id,left(trim(p_period_name),80),p_starts_on,p_ends_on) returning id into period_id;
+  return period_id;
+end;
+$$;
+revoke all on function public.create_accounting_period(uuid,text,date,date) from public,anon;
+grant execute on function public.create_accounting_period(uuid,text,date,date) to authenticated;
+
+create or replace function public.reverse_accounting_journal(
+  p_organization_id uuid,
+  p_original_journal_id uuid,
+  p_reversal_date date,
+  p_reason text
+) returns uuid language plpgsql security definer set search_path = ''
+as $$
+declare original public.journal_entries%rowtype; reversal_id uuid; reverse_lines jsonb;
+begin
+  if length(trim(coalesce(p_reason,'')))<5 then raise exception 'A meaningful reversal reason is required.' using errcode='22023'; end if;
+  select * into original from public.journal_entries
+    where organization_id=p_organization_id and id=p_original_journal_id and status='posted';
+  if not found then raise exception 'Only an existing posted journal can be reversed.' using errcode='P0002'; end if;
+  if original.reversed_entry_id is not null or original.source_type='reversal' then
+    raise exception 'A reversal journal cannot itself be reversed through this function.' using errcode='23514';
+  end if;
+  select jsonb_agg(jsonb_build_object(
+    'account_id',l.account_id,
+    'debit',l.credit,
+    'credit',l.debit,
+    'description',coalesce(l.description,'Reversal: ') || ' [reversal]',
+    'source_reference',coalesce(l.source_reference,original.source_type||':'||original.source_id::text)
+  ) order by l.line_number)
+  into reverse_lines from public.journal_lines l
+  where l.organization_id=p_organization_id and l.journal_entry_id=original.id;
+  if reverse_lines is null then raise exception 'Original journal has no lines.' using errcode='23514'; end if;
+  reversal_id := public.post_accounting_journal(
+    p_organization_id,
+    p_reversal_date,
+    'Reversal of journal '||original.journal_number||': '||left(trim(p_reason),400),
+    'reversal',
+    original.id,
+    'reversal',
+    reverse_lines,
+    original.id
+  );
+  return reversal_id;
+end;
+$$;
+revoke all on function public.reverse_accounting_journal(uuid,uuid,date,text) from public,anon;
+grant execute on function public.reverse_accounting_journal(uuid,uuid,date,text) to authenticated;
