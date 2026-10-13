@@ -1,4 +1,4 @@
- # SafariPOS
+# SafariPOS
 Point of sale, inventory, M-PESA and eTIMS pilot for Kenyan businesses
 
 ## Deployment
