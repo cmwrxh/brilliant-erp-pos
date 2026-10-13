@@ -78,7 +78,7 @@ end $$;
 select is(
   (select balance_due from public.sales_documents d join _document_test_context c on c.document_id=d.id),
   750::numeric,
-  'balance due is derived from total less confirmed allocated payment amount'
+  'balance due is generated from document total less stored paid amount'
 );
 
 select throws_ok(
