@@ -41,7 +41,7 @@ jobs:
       - name: Set up Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.62.0
       - name: Start disposable local Supabase stack
         run: supabase start --exclude rest,studio,mail,analytics,functions,storage,realtime,pooler
       - name: Apply every migration to the disposable database
