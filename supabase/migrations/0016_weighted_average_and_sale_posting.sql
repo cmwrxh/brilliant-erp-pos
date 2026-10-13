@@ -352,7 +352,7 @@ begin
       jsonb_build_object('account_id',sales_account,'debit',0,'credit',net_sales,'description','Sales revenue','source_reference',NEW.receipt_number)
     );
     if tax_amount>0 then revenue_lines := revenue_lines || jsonb_build_array(jsonb_build_object('account_id',vat_account,'debit',0,'credit',tax_amount,'description','Output VAT','source_reference',NEW.receipt_number)); end if;
-    perform public.post_accounting_journal_internal(NEW.organization_id,NEW.created_at::date,'Sale '||NEW.receipt_number,'sale',NEW.id,'revenue',revenue_lines,null);
+    perform public.post_accounting_journal_internal(NEW.organization_id,(NEW.created_at at time zone 'Africa/Nairobi')::date,'Sale '||NEW.receipt_number,'sale',NEW.id,'revenue',revenue_lines,null);
     select coalesce(sum(-value_delta),0) into cogs_amount from public.inventory_valuation_movements
       where organization_id=NEW.organization_id and source_type='sale' and source_id=NEW.id and movement_type='sale';
     if cogs_amount>0 then
@@ -363,7 +363,7 @@ begin
         jsonb_build_object('account_id',cogs_account,'debit',cogs_amount,'credit',0,'description','Cost of goods sold','source_reference',NEW.receipt_number),
         jsonb_build_object('account_id',inventory_account,'debit',0,'credit',cogs_amount,'description','Inventory relieved','source_reference',NEW.receipt_number)
       );
-      perform public.post_accounting_journal_internal(NEW.organization_id,NEW.created_at::date,'COGS for sale '||NEW.receipt_number,'sale',NEW.id,'cogs',cogs_lines,null);
+      perform public.post_accounting_journal_internal(NEW.organization_id,(NEW.created_at at time zone 'Africa/Nairobi')::date,'COGS for sale '||NEW.receipt_number,'sale',NEW.id,'cogs',cogs_lines,null);
     end if;
   end if;
   return NEW;
