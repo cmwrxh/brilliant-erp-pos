@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./version.css";
 
 export const metadata: Metadata = { title: "SafariPOS | Point of sale and inventory", description: "Point of sale, inventory, M-PESA and eTIMS workflows for Kenyan businesses." };
 
