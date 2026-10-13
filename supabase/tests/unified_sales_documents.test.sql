@@ -1,6 +1,6 @@
 create extension if not exists pgtap with schema extensions;
 begin;
-select plan(23);
+select plan(24);
 
 select has_table('public','sales_documents','one shared sales/invoice/credit-note header exists');
 select has_table('public','sales_document_lines','document line snapshots exist');
@@ -42,6 +42,13 @@ select ok(
     'public.customer_contact_preferences','public.support_access_grants'
    ]) as t),
   'browser roles cannot directly mutate financial records and anon cannot read them'
+);
+
+select ok(
+  exists(select 1 from pg_policies where schemaname='public' and tablename='support_access_grants'
+         and policyname='Owners and admins read support access grants'
+         and qual like '%owner%' and qual like '%admin%'),
+  'support consent records are visible only to owners and admins'
 );
 
 select ok(
