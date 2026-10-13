@@ -48,7 +48,7 @@ export function InvoiceManager({ organizationId, customers, products, locations 
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           organizationId, documentNumber: form.documentNumber, customerId: form.customerId,
-          locationId: form.locationId, dueAt: new Date(form.dueAt).toISOString(),
+          locationId: form.locationId, dueAt: new Date(form.dueAt + "T23:59:59+03:00").toISOString(),
           items: [{ productId: form.productId, quantity: Number(form.quantity), discountAmount: Number(form.discountAmount) }]
         })
       });
