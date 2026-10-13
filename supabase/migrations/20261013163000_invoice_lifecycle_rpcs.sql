@@ -14,6 +14,9 @@ declare
   caller_id uuid := auth.uid();
   caller_role text;
   existing_id uuid;
+  existing_number text;
+  existing_customer uuid;
+  existing_location uuid;
   document_id uuid;
   line jsonb;
   product_row record;
@@ -47,9 +50,12 @@ begin
      or not exists(select 1 from public.locations where organization_id=p_organization_id and id=p_location_id and is_active) then
     raise exception 'Choose a customer and active branch in this business.' using errcode='23503';
   end if;
-  select id into existing_id from public.sales_documents
-   where organization_id=p_organization_id and idempotency_key=p_idempotency_key;
-  if existing_id is not null then return existing_id; end if;
+  select id,document_number,customer_id,location_id into existing_id,existing_number,existing_customer,existing_location
+   from public.sales_documents where organization_id=p_organization_id and idempotency_key=p_idempotency_key;
+  if existing_id is not null then
+    if existing_number=trim(p_document_number) and existing_customer=p_customer_id and existing_location=p_location_id then return existing_id; end if;
+    raise exception 'Invoice idempotency key was reused for different invoice details.' using errcode='23505';
+  end if;
   insert into public.sales_documents(
     organization_id,document_number,document_type,status,customer_id,location_id,due_at,currency_code,
     created_by,idempotency_key
