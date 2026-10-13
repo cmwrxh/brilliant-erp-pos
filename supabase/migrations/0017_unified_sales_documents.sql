@@ -283,7 +283,7 @@ create index support_access_grants_active_idx on public.support_access_grants(or
 
 -- Read access is tenant-scoped. Writes are reserved for reviewed server-side workflows;
 -- no browser role gets direct INSERT/UPDATE/DELETE on financial records.
-do $$
+do $body$
 declare t text;
 begin
   foreach t in array array[
@@ -301,7 +301,7 @@ begin
       'Tenant members read '||t,t
     );
   end loop;
-end $;
+end $body$;
 
 -- Support-consent records are more sensitive than ordinary business documents.
 drop policy "Tenant members read support_access_grants" on public.support_access_grants;
