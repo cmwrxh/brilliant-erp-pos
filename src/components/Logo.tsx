@@ -9,7 +9,7 @@ export function Logo({ variant = "sidebar" }: LogoProps) {
     <Link className={className} href="/" aria-label="SafariPOS home">
       <Image
         className={variant === "auth" ? "safaripos-logo auth-logo-image" : "safaripos-logo sidebar-logo-image"}
-        src="/logo-full.jfif"
+        src="/static/logo-full.png"
         alt="SafariPOS"
         width={180}
         height={52}
