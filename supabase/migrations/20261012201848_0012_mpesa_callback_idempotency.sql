@@ -1,3 +1,4 @@
+-- Persist callback authentication and receipt time for idempotent M-PESA STK callback handling.
 alter table public.provider_transactions
   add column if not exists callback_token_hash text,
   add column if not exists callback_received_at timestamptz;
