@@ -22,10 +22,19 @@ select ok(
   and exists(select 1 from pg_trigger where tgname='post_completed_sale_to_ledger_after_completion' and not tgisinternal),
   'sale movements update valuation and completed sales post journals'
 );
+create temporary table _safaripos_accounting_seed_context(organization_id uuid) on commit drop;
+do $
+declare
+  seed_org_id uuid := gen_random_uuid();
+begin
+  insert into public.organizations(id,name,slug)
+  values(seed_org_id,'Accounting Seed Test','acct-seed-'||substr(replace(seed_org_id::text,'-',''),1,12));
+  insert into _safaripos_accounting_seed_context values(seed_org_id);
+end $;
 select ok(
-  exists(select 1 from public.organizations o join public.accounting_settings s on s.organization_id=o.id)
-  and exists(select 1 from public.organizations o join public.chart_of_accounts a on a.organization_id=o.id and a.system_key='goods_received_not_invoiced'),
-  'existing businesses have accounting settings and the inventory receipt clearing account'
+  exists(select 1 from _safaripos_accounting_seed_context c join public.accounting_settings s on s.organization_id=c.organization_id)
+  and exists(select 1 from _safaripos_accounting_seed_context c join public.chart_of_accounts a on a.organization_id=c.organization_id and a.system_key='goods_received_not_invoiced'),
+  'new businesses receive accounting settings and the inventory receipt clearing account'
 );
 
 create temporary table _safaripos_accounting_test_context(organization_id uuid, sale_id uuid) on commit drop;
