@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Sign in to record an invoice payment." }, { status: 401 });
-    const body = await request.json() as { organizationId?: string; documentId?: string; tenderType?: string; amount?: number; providerReference?: string };
+    const body = await request.json() as { organizationId?: string; documentId?: string; tenderType?: string; amount?: number; providerReference?: string; idempotencyKey?: string };
     if (!body.organizationId || !body.documentId || !body.tenderType || !Number.isFinite(Number(body.amount)) || Number(body.amount) <= 0) {
       return NextResponse.json({ error: "Workspace, invoice, tender and positive amount are required." }, { status: 400 });
     }
@@ -23,7 +23,8 @@ export async function POST(request: NextRequest) {
     if (!membership || !["owner", "admin", "manager", "cashier"].includes(membership.role)) {
       return NextResponse.json({ error: "Workspace access denied." }, { status: 403 });
     }
-    const idempotencyKey = "invoice-manual:" + randomUUID();
+    const idempotencyKey = body.idempotencyKey?.trim() || ("invoice-manual:" + randomUUID());
+    if (idempotencyKey.length < 8 || idempotencyKey.length > 160) return NextResponse.json({ error: "Invalid payment idempotency key." }, { status: 400 });
     const { data, error } = await supabase.rpc("record_document_payment", {
       p_organization_id: body.organizationId,
       p_document_id: body.documentId,
