@@ -6,9 +6,9 @@
 
 - Development source: foundation/bootstrap. Coolify previously reported a successful deployment; the Payments page was retested and works.
 - GitHub default branch: main. The open PR #1 is not merged. GitHub compare reports foundation/bootstrap and main have diverged (development branch 151 commits ahead and 2 behind at the time checked); reconcile history and review CI before any merge.
-- Supabase project has migrations 0001–0015 recorded as applied; migrations 0014–0015 add the accounting ledger foundation and tighter permissions. The pgTAP accounting schema/immutability test script was run against this project after the privilege fix.
+- Supabase project has migrations 0001–0016 recorded as applied. Migrations 0014–0015 add the ledger foundation and tighter permissions; migration 0016 adds moving-average valuation and completed-sale journal posting. The accounting pgTAP scripts exercise journal immutability, sale posting and inventory-to-GL reconciliation.
 - Existing RLS, checkout, inventory movement, payment callback and offline/eTIMS schema foundations exist, but several integrations have not passed end-to-end acceptance.
-- Accounting schema foundation is now present (migrations 0014–0015): tenant-scoped accounts, journal headers/lines, balance-at-posting guard, source idempotency, immutable posted journals, reversal RPC, period RPCs and audit log. Operational source adapters, full subledger reconciliations, retained-earnings close, statements, exports and complete acceptance suite remain.
+- Accounting foundation is now present (migrations 0014–0016): tenant-scoped accounts, journal headers/lines, balance-at-posting guard, source idempotency, immutable posted journals, reversal/period RPCs, audit log, moving-average inventory valuation, valued receipts and completed-sale revenue/VAT/COGS posting. Other source adapters, full subledger reconciliations, retained-earnings close, statements, exports and complete acceptance suite remain.
 - Branding changes and CPA policy draft are being prepared on the separate safaripos/accounting-plan branch. This branch is not the configured Coolify source and is not yet deployed.
 
 ## Five workstreams and release milestones
