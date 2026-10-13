@@ -38,7 +38,7 @@ create table public.sales_documents (
   foreign key (organization_id,legacy_sale_id) references public.sales(organization_id,id) on delete restrict,
   check ((document_type='credit_note' and source_document_id is not null) or document_type<>'credit_note'),
   check ((status='void' and voided_at is not null) or status<>'void'),
-  check (amount_paid <= grand_total or grand_total=0),
+  check (amount_paid <= grand_total),
   check (due_at is null or issued_at is null or due_at >= issued_at)
 );
 create index sales_documents_org_created_idx on public.sales_documents(organization_id,created_at desc);
@@ -87,6 +87,8 @@ create table public.sales_document_tax_lines (
 );
 create index sales_document_tax_lines_document_idx on public.sales_document_tax_lines(organization_id,document_id);
 
+alter table public.sale_payments add constraint sale_payments_organization_id_id_key unique (organization_id,id);
+
 create table public.document_payments (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null,
@@ -108,6 +110,7 @@ create table public.document_payments (
   unique (organization_id,idempotency_key),
   unique (organization_id,legacy_sale_payment_id),
   foreign key (organization_id,document_id) references public.sales_documents(organization_id,id) on delete restrict,
+  foreign key (organization_id,legacy_sale_payment_id) references public.sale_payments(organization_id,id) on delete restrict,
   check (received_amount <= amount),
   check (refunded_amount <= received_amount)
 );
@@ -169,6 +172,7 @@ create table public.document_etims_submissions (
   unique (organization_id,id),
   unique (organization_id,idempotency_key),
   foreign key (organization_id,document_id) references public.sales_documents(organization_id,id) on delete restrict,
+  foreign key (organization_id,legacy_etims_invoice_id) references public.etims_invoices(organization_id,id) on delete restrict,
   check ((status='accepted' and accepted_at is not null) or status<>'accepted')
 );
 create index document_etims_due_idx on public.document_etims_submissions(status,next_attempt_at) where status in ('queued','retry_wait');
