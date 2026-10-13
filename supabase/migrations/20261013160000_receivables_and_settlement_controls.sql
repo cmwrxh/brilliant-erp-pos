@@ -273,8 +273,12 @@ begin
     p_organization_id,(p_period_end at time zone 'Africa/Nairobi')::date,
     'M-PESA settlement '||p_settlement_reference,'mpesa_settlement',settlement_id,'settlement',
     jsonb_build_array(
-      jsonb_build_object('account_id',bank_account,'debit',p_net_amount,'credit',0,'description','Net M-PESA bank settlement','source_reference',coalesce(p_bank_reference,p_settlement_reference)),
-      jsonb_build_object('account_id',fee_account,'debit',p_fee_amount,'credit',0,'description','M-PESA processing fees','source_reference',p_settlement_reference),
+      jsonb_build_object('account_id',bank_account,'debit',p_net_amount,'credit',0,'description','Net M-PESA bank settlement','source_reference',coalesce(p_bank_reference,p_settlement_reference))
+    ) ||
+    case when p_fee_amount>0 then jsonb_build_array(
+      jsonb_build_object('account_id',fee_account,'debit',p_fee_amount,'credit',0,'description','M-PESA processing fees','source_reference',p_settlement_reference)
+    ) else '[]'::jsonb end ||
+    jsonb_build_array(
       jsonb_build_object('account_id',clearing_account,'debit',0,'credit',p_gross_amount,'description','Clear gross M-PESA receipts','source_reference',p_settlement_reference)
     ),null
   );
