@@ -6,9 +6,9 @@
 
 - Development source: foundation/bootstrap. Coolify previously reported a successful deployment; the Payments page was retested and works.
 - GitHub default branch: main. The open PR #1 is not merged. GitHub compare reports foundation/bootstrap and main have diverged (development branch 151 commits ahead and 2 behind at the time checked); reconcile history and review CI before any merge.
-- Supabase project has migrations 0001–0013 recorded as applied.
+- Supabase project has migrations 0001–0015 recorded as applied; migrations 0014–0015 add the accounting ledger foundation and tighter permissions. The pgTAP accounting schema/immutability test script was run against this project after the privilege fix.
 - Existing RLS, checkout, inventory movement, payment callback and offline/eTIMS schema foundations exist, but several integrations have not passed end-to-end acceptance.
-- No double-entry accounting tables, posting function, accounting statements or ledger acceptance suite were found in the inspected schema.
+- Accounting schema foundation is now present (migrations 0014–0015): tenant-scoped accounts, journal headers/lines, balance-at-posting guard, source idempotency, immutable posted journals, reversal RPC, period RPCs and audit log. Operational source adapters, full subledger reconciliations, retained-earnings close, statements, exports and complete acceptance suite remain.
 - Branding changes and CPA policy draft are being prepared on the separate safaripos/accounting-plan branch. This branch is not the configured Coolify source and is not yet deployed.
 
 ## Five workstreams and release milestones
