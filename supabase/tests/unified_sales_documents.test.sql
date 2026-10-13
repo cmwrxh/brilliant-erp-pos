@@ -1,6 +1,6 @@
 create extension if not exists pgtap with schema extensions;
 begin;
-select plan(27);
+select plan(29);
 
 select has_table('public','sales_documents','one shared sales/invoice/credit-note header exists');
 select has_table('public','sales_document_lines','document line snapshots exist');
@@ -153,6 +153,38 @@ select throws_ok(
   $q$insert into public.sales_documents(organization_id,document_number,document_type)
      values ('cccccccc-cccc-4ccc-8ccc-cccccccccccc','RLS-DIRECT-WRITE','invoice')$q$,
   '42501', null, 'authenticated clients cannot directly create financial documents'
+);
+reset role;
+
+insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at)
+  values('44444444-4444-4444-8444-444444444444','authenticated','authenticated','document-manager@example.invalid','',now())
+  on conflict (id) do nothing;
+insert into public.organization_members(organization_id,user_id,role)
+  values('cccccccc-cccc-4ccc-8ccc-cccccccccccc','44444444-4444-4444-8444-444444444444','manager');
+insert into public.support_access_grants(
+  organization_id,granted_by,support_actor_id,reason,expires_at
+) values (
+  'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+  '33333333-3333-4333-8333-333333333333',
+  '44444444-4444-4444-8444-444444444444',
+  'Contract test for support-access consent',
+  now()+interval '1 hour'
+);
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',true);
+select is(
+  (select count(*)::int from public.support_access_grants),
+  1,
+  'workspace owner can review support-access consent'
+);
+reset role;
+select set_config('request.jwt.claim.sub','44444444-4444-4444-8444-444444444444',true);
+set local role authenticated;
+select is(
+  (select count(*)::int from public.support_access_grants),
+  0,
+  'manager cannot read sensitive support-access grants'
 );
 reset role;
 
