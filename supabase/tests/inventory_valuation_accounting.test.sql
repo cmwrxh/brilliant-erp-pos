@@ -60,7 +60,7 @@ begin
   insert into public.sale_payments(organization_id,sale_id,method,amount,status)
     values(org_id,sale_id,'cash',1160,'recorded');
   update public.inventory_balances set quantity=3,updated_at=now()
-    where organization_id=org_id and location_id=loc_id and product_id=product_id;
+    where inventory_balances.organization_id=org_id and inventory_balances.location_id=loc_id and inventory_balances.product_id=product_id;
   insert into public.inventory_movements(organization_id,location_id,product_id,movement_type,quantity_delta,quantity_before,quantity_after,reference_type,reference_id)
     values(org_id,loc_id,product_id,'sale',-2,5,3,'sale',sale_id);
   update public.sales set status='completed' where id=sale_id and organization_id=org_id;
