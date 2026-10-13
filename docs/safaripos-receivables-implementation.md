@@ -14,6 +14,7 @@
 - Invoice draft and issue RPCs, immutable product/tax snapshots, receivable/revenue/output-VAT journal posting, and a durable eTIMS queue record.
 - Gated invoice APIs and UI for invoice drafts, manual cash/bank/card payments, sandbox M-PESA STK collection, supplier bills/payments and settlement reconciliation.
 - A trusted service-role-only M-PESA invoice callback RPC. It verifies the provider transaction record and amount, updates the invoice balance, posts the receivable-clearing journal and is idempotent. Manual M-PESA invoice confirmation remains blocked.
+- Database-level release gates on invoice/payment, supplier/AP and settlement writes. Both workflow gates default to disabled; browser clients cannot update the gate settings directly.
 - Invoice list/draft/issue API and workspace screen. The screen and APIs remain disabled unless `SAFARIPOS_INVOICE_UI_ENABLED=true`.
 
 ## Required before enabling
@@ -29,7 +30,7 @@
 ## Important limitations
 
 - The current draft invoice line snapshot marks the tax code as `UNMAPPED` and tax treatment as `other`. Do not use it as an official KRA tax invoice until mapping and eTIMS acceptance are implemented.
-- The new migration files are additive and must be replayed from a clean disposable database. No remote database changes are performed by this branch. The invoice and accounting UI feature flags are off by default.
+- The new migration files are additive and must be replayed from a clean disposable database. No remote database changes are performed by this branch. The invoice and accounting UI feature flags are off by default, and database triggers also block direct RPC/table writes until the corresponding per-organization release gate is enabled by a reviewed migration.
 - Supplier bill workflows post into the existing immutable journal, but supplier statements/imports, supplier-credit notes, payment terms, AP ageing reports and exports still require implementation and acceptance tests.
 - Settlement matching uses confirmed successful document-payment records within the supplied settlement period. It does not yet import M-PESA settlement files or call a live Daraja endpoint.
 - M-PESA settlement posting supports zero-fee and positive-fee statements. Provider-specific fee tax treatment and bank reconciliation tolerances require policy review.
