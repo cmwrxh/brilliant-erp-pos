@@ -164,8 +164,8 @@ begin
      or p_idempotency_key is null or length(trim(p_idempotency_key))<8 then
     raise exception 'Valid tender, amount and idempotency key are required.' using errcode='22023';
   end if;
-  if p_tender_type='mpesa' and (p_provider_reference is null or length(trim(p_provider_reference))<4) then
-    raise exception 'Confirmed M-PESA reference is required; an STK request is not a payment.' using errcode='22023';
+  if p_tender_type='mpesa' then
+    raise exception 'M-PESA invoice payments must be recorded by a verified provider callback; manual M-PESA confirmation is disabled.' using errcode='42501';
   end if;
   select * into doc from public.sales_documents
    where organization_id=p_organization_id and id=p_document_id for update;
