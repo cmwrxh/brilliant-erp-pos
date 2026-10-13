@@ -1,6 +1,6 @@
 # SafariPOS Unified Sales Documents and POS Acceptance Plan
 
-**Status:** Additive migration `supabase/migrations/0017_unified_sales_documents.sql` and pgTAP contract tests are committed on `foundation/bootstrap`. They have not yet passed local CI and have not been applied to any remote Supabase project. Invoice screens remain blocked until the M-PESA and eTIMS sandbox gates pass. Every acceptance item below is a release test. Do not advertise a capability as available until its test evidence is recorded.
+**Status:** Additive migration `supabase/migrations/20261013150000_unified_sales_documents.sql` and pgTAP contract tests are committed on `foundation/bootstrap`. They have not yet passed local CI and have not been applied to any remote Supabase project. Invoice screens remain blocked until the M-PESA and eTIMS sandbox gates pass. Every acceptance item below is a release test. Do not advertise a capability as available until its test evidence is recorded.
 
 ## 1. One document model
 
