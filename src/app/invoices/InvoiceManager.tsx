@@ -25,6 +25,7 @@ export function InvoiceManager({ organizationId, customers, products, locations 
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentTender, setPaymentTender] = useState("cash");
   const [paymentReference, setPaymentReference] = useState("");
+  const [paymentIdempotencyKey, setPaymentIdempotencyKey] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ documentNumber: "", customerId: "", locationId: locations[0]?.id ?? "", dueAt: "", productId: "", quantity: "1", discountAmount: "0" });
 
@@ -100,12 +101,13 @@ export function InvoiceManager({ organizationId, customers, products, locations 
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           organizationId, documentId: manualPaymentFor.id, tenderType: paymentTender,
-          amount: Number(paymentAmount), providerReference: paymentReference.trim() || undefined
+          amount: Number(paymentAmount), providerReference: paymentReference.trim() || undefined,
+          idempotencyKey: paymentIdempotencyKey
         })
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? "Could not record payment.");
-      setManualPaymentFor(null); setPaymentAmount(""); setPaymentReference("");
+      setManualPaymentFor(null); setPaymentAmount(""); setPaymentReference(""); setPaymentIdempotencyKey("");
       await load();
     } catch (e) { setError(e instanceof Error ? e.message : "Could not record payment."); }
     finally { setBusy(false); }
@@ -144,7 +146,7 @@ export function InvoiceManager({ organizationId, customers, products, locations 
         <td><span className="catalog-product-name"><span className="catalog-product-icon"><FileText size={16}/></span><strong>{invoice.document_number}</strong></span></td>
         <td>{new Date(invoice.created_at).toLocaleDateString("en-KE")}</td><td><span className={invoice.status === "paid" ? "status completed" : "status pending"}>{invoice.status}</span></td>
         <td className="amount">{money(invoice.grand_total)}</td><td>{money(invoice.amount_paid)}</td><td className="amount">{money(invoice.balance_due)}</td>
-        <td>{invoice.status === "draft" ? <button className="provider-connect primary" type="button" disabled={busy} onClick={() => void issue(invoice)}><Send size={14}/> Issue</button> : Number(invoice.balance_due) > 0 && !["void", "credited", "paid"].includes(invoice.status) ? <><button className="provider-connect primary" type="button" disabled={busy} onClick={() => { setManualPaymentFor(invoice); setPaymentAmount(String(invoice.balance_due)); }}>Record payment</button><button className="provider-connect" type="button" disabled={busy} onClick={() => void requestMpesa(invoice)}>M-PESA STK</button></> : <span className="muted">{invoice.status === "paid" ? "Paid" : "eTIMS queued"}</span>}</td>
+        <td>{invoice.status === "draft" ? <button className="provider-connect primary" type="button" disabled={busy} onClick={() => void issue(invoice)}><Send size={14}/> Issue</button> : Number(invoice.balance_due) > 0 && !["void", "credited", "paid"].includes(invoice.status) ? <><button className="provider-connect primary" type="button" disabled={busy} onClick={() => { setManualPaymentFor(invoice); setPaymentAmount(String(invoice.balance_due)); setPaymentIdempotencyKey("invoice-manual:" + crypto.randomUUID()); }}>Record payment</button><button className="provider-connect" type="button" disabled={busy} onClick={() => void requestMpesa(invoice)}>M-PESA STK</button></> : <span className="muted">{invoice.status === "paid" ? "Paid" : "eTIMS queued"}</span>}</td>
       </tr>) : <tr><td colSpan={7} className="empty-catalog">No invoices yet. Create a draft to start.</td></tr>}
     </tbody></table></div><div className="table-footer"><span>{invoices.length} invoices</span><span>eTIMS queue status is not proof of KRA acceptance.</span></div></section>
   </>;
