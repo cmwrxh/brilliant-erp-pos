@@ -87,8 +87,8 @@ select ok(
   'inventory GL control account reconciles to valuation after the sale'
 );
 select ok(
-  (select count(*)=3 and sum_debit=sum_credit from (
-    select count(*) as count,coalesce(sum(l.debit),0) as sum_debit,coalesce(sum(l.credit),0) as sum_credit
+  (select (select count(*)=3 from _safaripos_accounting_test_context c join public.journal_entries j on j.organization_id=c.organization_id and j.status='posted') and sum_debit=sum_credit from (
+    select coalesce(sum(l.debit),0) as sum_debit,coalesce(sum(l.credit),0) as sum_credit
     from _safaripos_accounting_test_context c join public.journal_entries j on j.organization_id=c.organization_id and j.status='posted'
     join public.journal_lines l on l.organization_id=j.organization_id and l.journal_entry_id=j.id
     group by c.organization_id
