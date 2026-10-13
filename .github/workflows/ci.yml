@@ -47,7 +47,7 @@ jobs:
       - name: Apply every migration to the disposable database
         run: supabase db reset --local
       - name: Run database regression tests (pgTAP)
-        run: supabase test db --local
+        run: supabase test db
       - name: Stop disposable database
         if: always()
         run: supabase stop --no-backup
