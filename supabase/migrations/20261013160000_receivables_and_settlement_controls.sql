@@ -159,7 +159,7 @@ begin
   if caller_role is null or caller_role not in ('owner','admin','manager','cashier') then
     raise exception 'Not authorized to record customer payments.' using errcode='42501';
   end if;
-  if p_tender_type not in ('cash','mpesa','bank_transfer','card','other')
+  if p_tender_type is null or p_tender_type not in ('cash','mpesa','bank_transfer','card','other')
      or p_amount is null or p_amount<=0 or p_amount>1000000000
      or p_idempotency_key is null or length(trim(p_idempotency_key))<8 then
     raise exception 'Valid tender, amount and idempotency key are required.' using errcode='22023';
@@ -247,7 +247,8 @@ begin
   if caller_id is null then raise exception 'Authentication required.' using errcode='28000'; end if;
   select role::text into caller_role from public.organization_members where organization_id=p_organization_id and user_id=caller_id;
   if caller_role is null or caller_role not in ('owner','admin','manager') then raise exception 'Not authorized to reconcile settlements.' using errcode='42501'; end if;
-  if length(trim(coalesce(p_settlement_reference,'')))<4 or p_period_start is null or p_period_end<p_period_start
+  if length(trim(coalesce(p_settlement_reference,'')))<4 or p_period_start is null or p_period_end is null or p_period_end<p_period_start
+    or p_gross_amount is null or p_fee_amount is null or p_net_amount is null
     or p_gross_amount<=0 or p_fee_amount<0 or p_net_amount<=0 or round(p_gross_amount-p_fee_amount,2)<>p_net_amount then
     raise exception 'Settlement period and amounts are invalid; gross less fees must equal net.' using errcode='22023';
   end if;
@@ -308,7 +309,7 @@ begin
   if caller_id is null then raise exception 'Authentication required.' using errcode='28000'; end if;
   select role::text into caller_role from public.organization_members where organization_id=p_organization_id and user_id=caller_id;
   if caller_role is null or caller_role not in ('owner','admin','manager') then raise exception 'Not authorized to queue tax documents.' using errcode='42501'; end if;
-  if p_submission_mode not in ('OSCU','VSCU','other') or length(trim(coalesce(p_idempotency_key,'')))<8
+  if p_submission_mode is null or p_submission_mode not in ('OSCU','VSCU','other') or length(trim(coalesce(p_idempotency_key,'')))<8
      or length(trim(coalesce(p_request_fingerprint,'')))<16 then
     raise exception 'Submission mode, idempotency key and request fingerprint are required.' using errcode='22023';
   end if;
