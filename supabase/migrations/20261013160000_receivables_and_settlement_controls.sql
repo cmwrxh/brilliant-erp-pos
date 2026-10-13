@@ -144,6 +144,10 @@ declare
   caller_role text;
   doc public.sales_documents%rowtype;
   payment_id uuid;
+  existing_doc_id uuid;
+  existing_amount numeric(16,2);
+  existing_tender text;
+  existing_reference text;
   tender_key text;
   tender_account uuid;
   ar_account uuid;
@@ -168,9 +172,13 @@ begin
   if not found or doc.document_type='credit_note' or doc.status in ('draft','void','credited') then
     raise exception 'Only an issued sale or invoice can receive payment.' using errcode='23514';
   end if;
-  select id into payment_id from public.document_payments
-   where organization_id=p_organization_id and idempotency_key=p_idempotency_key;
-  if payment_id is not null then return payment_id; end if;
+  select id,document_id,amount,tender_type,provider_reference into payment_id,existing_doc_id,existing_amount,existing_tender,existing_reference
+   from public.document_payments where organization_id=p_organization_id and idempotency_key=p_idempotency_key;
+  if payment_id is not null then
+    if existing_doc_id=p_document_id and existing_amount=p_amount and existing_tender=p_tender_type
+       and existing_reference is not distinct from p_provider_reference then return payment_id; end if;
+    raise exception 'Idempotency key was already used for a different payment.' using errcode='23505';
+  end if;
   if p_amount > doc.grand_total-doc.amount_paid then
     raise exception 'Payment exceeds the outstanding balance.' using errcode='23514';
   end if;
@@ -244,8 +252,14 @@ begin
     raise exception 'Settlement period and amounts are invalid; gross less fees must equal net.' using errcode='22023';
   end if;
   select id into settlement_id from public.mpesa_settlements
-   where organization_id=p_organization_id and settlement_reference=p_settlement_reference;
+   where organization_id=p_organization_id and settlement_reference=p_settlement_reference
+     and period_start=p_period_start and period_end=p_period_end and gross_amount=p_gross_amount
+     and fee_amount=p_fee_amount and net_amount=p_net_amount
+     and bank_reference is not distinct from p_bank_reference;
   if settlement_id is not null then return settlement_id; end if;
+  if exists(select 1 from public.mpesa_settlements where organization_id=p_organization_id and settlement_reference=p_settlement_reference) then
+    raise exception 'Settlement reference already exists with different details.' using errcode='23505';
+  end if;
   select id into clearing_account from public.chart_of_accounts where organization_id=p_organization_id and system_key='mpesa_clearing' and is_active;
   select id into bank_account from public.chart_of_accounts where organization_id=p_organization_id and system_key='bank' and is_active;
   select id into fee_account from public.chart_of_accounts where organization_id=p_organization_id and system_key='payment_fees' and is_active;
