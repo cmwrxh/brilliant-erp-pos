@@ -1,9 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
 
-type LogoProps = { variant?: "sidebar" | "auth"; compact?: boolean };
+type LogoProps = { variant?: "sidebar" | "auth" };
 
-export function Logo({ variant = "sidebar", compact = false }: LogoProps) {
+export function Logo({ variant = "sidebar" }: LogoProps) {
   const className = variant === "auth" ? "auth-brand" : "brand";
   return (
     <Link className={className} href="/" aria-label="SafariPOS home">
@@ -16,7 +16,7 @@ export function Logo({ variant = "sidebar", compact = false }: LogoProps) {
         priority
         unoptimized
       />
-      {compact ? <span className="sr-only">SafariPOS</span> : null}
+      {variant === "sidebar" ? <Image className="safaripos-logo sidebar-icon-image" src="/icon-source.png" alt="" width={42} height={42} priority unoptimized /> : null}
     </Link>
   );
 }
