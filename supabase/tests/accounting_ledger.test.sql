@@ -35,7 +35,7 @@ declare
   journal_id uuid := gen_random_uuid();
 begin
   insert into public.organizations(id,name,slug) values(org_id,'Accounting Test','acct-test-'||substr(replace(org_id::text,'-',''),1,12));
-  insert into public.accounting_settings(organization_id) values(org_id);
+  insert into public.accounting_settings(organization_id) values(org_id) on conflict do nothing;
   insert into public.chart_of_accounts(id,organization_id,code,name,account_type,normal_balance)
     values(acct_debit,org_id,'TEST100','Test debit account','asset','debit'),
           (acct_credit,org_id,'TEST400','Test credit account','revenue','credit');
@@ -60,7 +60,7 @@ declare
   journal_id uuid := gen_random_uuid();
 begin
   insert into public.organizations(id,name,slug) values(org_id,'Immutable Test','immut-test-'||substr(replace(org_id::text,'-',''),1,12));
-  insert into public.accounting_settings(organization_id) values(org_id);
+  insert into public.accounting_settings(organization_id) values(org_id) on conflict do nothing;
   insert into public.chart_of_accounts(id,organization_id,code,name,account_type,normal_balance)
     values(acct_debit,org_id,'TEST110','Test cash','asset','debit'),
           (acct_credit,org_id,'TEST410','Test income','revenue','credit');
