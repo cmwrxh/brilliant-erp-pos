@@ -18,6 +18,7 @@ declare
   line jsonb;
   product_row record;
   line_no integer := 0;
+  line_id uuid;
   qty numeric(14,3);
   price numeric(16,4);
   discount numeric(16,2);
@@ -86,13 +87,13 @@ begin
       p_organization_id,document_id,line_no,product_row.id,product_row.name,product_row.sku,
       coalesce(nullif(line->>'unit_of_measure',''),product_row.unit),qty,price,discount,'UNMAPPED',
       tax_rate,taxable_base,tax_amount,line_total
-    );
+    ) returning id into line_id;
     insert into public.sales_document_tax_lines(
       organization_id,document_id,document_line_id,tax_code_snapshot,tax_rate_snapshot,
       tax_treatment,taxable_base,tax_amount
     ) values (
       p_organization_id,document_id,
-      (select id from public.sales_document_lines where organization_id=p_organization_id and document_id=document_id and line_number=line_no),
+      line_id,
       'UNMAPPED',tax_rate,'other',taxable_base,tax_amount
     );
     subtotal_total := subtotal_total+taxable_base;
