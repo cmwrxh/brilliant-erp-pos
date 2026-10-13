@@ -1,6 +1,6 @@
 # SafariPOS Unified Sales Documents and POS Acceptance Plan
 
-**Status:** Design/planning only. No invoice screens are authorised by this plan yet. Design the shared data model now; build customer-facing invoice screens only after the M-PESA and eTIMS sandbox gates pass. Every acceptance item below is a release test. Do not advertise a capability as available until its test evidence is recorded.
+**Status:** Additive migration `supabase/migrations/0017_unified_sales_documents.sql` and pgTAP contract tests are committed on `foundation/bootstrap`. They have not yet passed local CI and have not been applied to any remote Supabase project. Invoice screens remain blocked until the M-PESA and eTIMS sandbox gates pass. Every acceptance item below is a release test. Do not advertise a capability as available until its test evidence is recorded.
 
 ## 1. One document model
 
@@ -8,7 +8,7 @@ Sales, invoices, and credit notes must use one tenant-scoped document model. Do 
 
 ### Proposed logical schema
 
-These are target entities, not a claim that the tables or migration already exist. Inspect current sales tables and RPCs before writing additive migrations; preserve existing sale IDs and posting references, and use expand/contract migrations.
+The migration now declares these entities as an additive schema draft. It does not backfill or switch existing callers. Before any remote application, validate it by replaying all migrations against disposable local Supabase, review current RPCs and tenant policies, preserve existing sale IDs/posting references, and use expand/contract for the eventual caller switch.
 
 - `sales_documents`: `id`, `organization_id`, human-readable `document_number`, `document_type` (sale, invoice, credit_note), `status` (draft, sent, partially_paid, paid, overdue, void, credited), `customer_id` nullable for walk-in sales, `source_document_id` nullable self-reference for credit notes, `issued_at`, `due_at`, `currency_code`, subtotal/discount/tax/total/paid/balance amounts in fixed-precision numeric types, `created_by`, `voided_at`, `void_reason`, and timestamps. Enforce tenant-scoped uniqueness for document numbers and tenant-scoped foreign keys.
 - `sales_document_lines`: `id`, `organization_id`, `document_id`, line number, optional product/variant reference, description snapshot, quantity, unit of measure, unit price, discount, tax code/reference snapshot, taxable base, tax amount, gross line total, and optional inventory location/batch reference. Preserve issued-line snapshots so later catalogue edits cannot rewrite history.
