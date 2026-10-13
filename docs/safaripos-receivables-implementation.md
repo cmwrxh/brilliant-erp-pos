@@ -7,7 +7,7 @@
 ## Added in this workstream
 
 - Tenant-scoped customer payment allocation records.
-- `record_document_payment`: validates workspace role, outstanding balance, confirmed M-PESA reference, idempotency and chart-of-accounts setup; records the payment, updates the document balance and posts the receivables-clearing journal.
+- `record_document_payment`: validates workspace role, outstanding balance, idempotency and chart-of-accounts setup; records approved manual tenders, updates the document balance and posts the receivables-clearing journal. Manual M-PESA invoice confirmation is explicitly blocked until a verified provider callback is wired.
 - Supplier master records, supplier bill headers and line snapshots, supplier bill payment records, and narrow RPCs for supplier creation, bill posting and bill payments.
 - `record_mpesa_settlement`: records gross/fee/net settlement values and posts bank, provider-fee and M-PESA-clearing entries. The accounting invariant is gross less fees equals net.
 - `match_mpesa_settlement_payments`: matches confirmed M-PESA document payments to a settlement period, rejects duplicate matches and returns an explicit variance when the matched payment total does not equal the settlement gross.
@@ -19,7 +19,7 @@
 1. Run the disposable local Supabase migration replay and complete pgTAP suite successfully, including migrations 0017 onward.
 2. Review invoice, supplier-bill, payment and settlement RPCs with test fixtures that cover two tenants, every allowed role, denied roles, retries, duplicate callbacks, overpayment and closed periods.
 3. Fix product tax-code mapping and obtain CPA review of input/output VAT, supplier expense/inventory coding, settlement fee posting and invoice revenue policy.
-4. Complete Daraja sandbox initiation/callback failure, timeout, replay, C2B validation/confirmation, unmatched receipts and refund tests. The settlement schema/RPC is not itself a Daraja integration or proof that funds settled.
+4. Complete Daraja sandbox initiation/callback failure, timeout, replay, C2B validation/confirmation, unmatched receipts and refund tests. The settlement schema/RPC is not itself a Daraja integration or proof that funds settled. Manual invoice payments cannot mark an M-PESA tender successful; that route remains blocked until the callback is connected to a trusted server-side posting path.
 5. Confirm the current KRA OSCU/VSCU onboarding route and required payload/signature/device requirements; implement the provider adapter and pass sandbox invoice/credit-note submission, retry and accepted-response tests.
 6. Keep the invoice feature flag disabled until the above gates are met. The current issue workflow writes an internal invoice journal and a durable eTIMS queue item; it does **not** submit to KRA. A queued item is not an accepted tax invoice.
 7. Do not apply migrations to the live Supabase project or promote the branch to the Coolify production deployment until CI and migration review pass.
