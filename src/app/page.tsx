@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SignOutButton } from "./SignOutButton";
-import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, Boxes, CreditCard, LayoutDashboard, Package, Search, Settings2, ShoppingCart, Store, Users, FileText } from "lucide-react";
+import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, Boxes, CreditCard, LayoutDashboard, Package, Search, Settings2, ShoppingCart, Store, Users, FileText, Wallet } from "lucide-react";
 
-const nav = [{label:"Overview",href:"/",icon:LayoutDashboard,active:true},{label:"Point of sale",href:"/pos",icon:ShoppingCart},{label:"Inventory",href:"/inventory",icon:Boxes},{label:"Products",href:"/products",icon:Package},{label:"Customers",href:"/customers",icon:Users},{label:"Invoices",href:"/invoices",icon:FileText},{label:"Reports",href:"/reports",icon:BarChart3}];
+const nav = [{label:"Overview",href:"/",icon:LayoutDashboard,active:true},{label:"Point of sale",href:"/pos",icon:ShoppingCart},{label:"Inventory",href:"/inventory",icon:Boxes},{label:"Products",href:"/products",icon:Package},{label:"Customers",href:"/customers",icon:Users},{label:"Invoices",href:"/invoices",icon:FileText},{label:"Accounting",href:"/accounting",icon:Wallet},{label:"Reports",href:"/reports",icon:BarChart3}];
 
 type SaleRecord={id:string;receipt_number:string;grand_total:number|string;status:string;created_at:string;customers:{name:string}|{name:string}[]|null;sale_payments:{method:string}|{method:string}[]|null};
 export default async function HomePage(){
