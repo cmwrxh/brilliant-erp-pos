@@ -68,6 +68,7 @@ declare
 begin
   insert into public.organizations(id,name,slug) values
     (org_id,'Document Contract Test','doc-test-'||substr(replace(org_id::text,'-',''),1,12));
+  update public.accounting_settings set invoice_workflows_enabled=true where organization_id=org_id;
   insert into public.sales_documents(id,organization_id,document_number,document_type,status,grand_total,amount_paid)
     values(original_id,org_id,'INV-CONTRACT-1','invoice','issued',1000,250);
   insert into public.sales_documents(id,organization_id,document_number,document_type,status,source_document_id,grand_total)
@@ -131,6 +132,8 @@ insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at)
 insert into public.organizations(id,name,slug) values
   ('cccccccc-cccc-4ccc-8ccc-cccccccccccc','Document RLS A','doc-rls-a'),
   ('dddddddd-dddd-4ddd-8ddd-dddddddddddd','Document RLS B','doc-rls-b');
+update public.accounting_settings set invoice_workflows_enabled=true
+  where organization_id in ('cccccccc-cccc-4ccc-8ccc-cccccccccccc','dddddddd-dddd-4ddd-8ddd-dddddddddddd');
 insert into public.organization_members(organization_id,user_id,role)
   values('cccccccc-cccc-4ccc-8ccc-cccccccccccc','33333333-3333-4333-8333-333333333333','owner');
 insert into public.sales_documents(organization_id,document_number,document_type,status)

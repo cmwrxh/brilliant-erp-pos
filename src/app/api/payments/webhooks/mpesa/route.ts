@@ -63,6 +63,24 @@ export async function POST(request:NextRequest){
    return NextResponse.json({ResultCode:0,ResultDesc:"Callback amount or metadata did not match the initiated payment."});
   }
   await confirmWithDaraja(admin,transaction.organization_id,callback.CheckoutRequestID);
+  const {data:invoiceLink,error:invoiceLinkError}=transaction.sale_id
+   ? {data:null,error:null}
+   : await admin.from("provider_transactions").select("document_id").eq("id",transaction.id).maybeSingle();
+  if(invoiceLinkError)throw invoiceLinkError;
+  const invoiceDocumentId=invoiceLink?.document_id;
+  if(invoiceDocumentId){
+   const {error:completionError}=await admin.rpc("complete_invoice_mpesa_payment",{
+    p_organization_id:transaction.organization_id,p_document_id:invoiceDocumentId,
+    p_reference:transaction.reference,p_checkout_request_id:callback.CheckoutRequestID,
+    p_receipt_number:receipt,p_amount:amount
+   });
+   if(completionError)throw completionError;
+   const {error:updateError}=await admin.from("provider_transactions").update({
+    provider_payload:payload,callback_received_at:new Date().toISOString(),updated_at:new Date().toISOString()
+   }).eq("id",transaction.id).eq("status","succeeded");
+   if(updateError)throw updateError;
+   return NextResponse.json({ResultCode:0,ResultDesc:"Invoice payment processed."});
+  }
   const {error:completionError}=await admin.rpc("complete_sale",{
    p_organization_id:transaction.organization_id,p_sale_id:transaction.sale_id,
    p_method:"mpesa",p_amount:amount,p_provider_reference:receipt

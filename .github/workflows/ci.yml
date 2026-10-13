@@ -1,5 +1,9 @@
 name: CI
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   pull_request:
   push:
@@ -39,9 +43,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Set up Supabase CLI
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@v2
         with:
           version: latest
+          github-token: ${{ github.token }}
       - name: Start disposable local Supabase stack
         run: supabase start --exclude rest,studio,mail,analytics,functions,storage,realtime,pooler
       - name: Apply every migration to the disposable database
