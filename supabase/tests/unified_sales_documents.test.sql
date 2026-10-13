@@ -1,6 +1,6 @@
 create extension if not exists pgtap with schema extensions;
 begin;
-select plan(21);
+select plan(23);
 
 select has_table('public','sales_documents','one shared sales/invoice/credit-note header exists');
 select has_table('public','sales_document_lines','document line snapshots exist');
@@ -92,11 +92,11 @@ select ok(
   'credit note explicitly links to its original document'
 );
 
+insert into public.document_payments(organization_id,document_id,tender_type,idempotency_key,amount)
+  select organization_id,document_id,'mpesa','pay-contract-key',50 from _document_test_context;
 select throws_ok(
-  $$insert into public.document_payments(organization_id,document_id,tender_type,idempotency_key,amount)
-    select organization_id,document_id,'mpesa','pay-contract-key',50 from _document_test_context;
-    insert into public.document_payments(organization_id,document_id,tender_type,idempotency_key,amount)
-    select organization_id,document_id,'mpesa','pay-contract-key',50 from _document_test_context$$,
+  $insert into public.document_payments(organization_id,document_id,tender_type,idempotency_key,amount)
+    select organization_id,document_id,'mpesa','pay-contract-key',50 from _document_test_context$,
   '23505', null, 'duplicate payment idempotency key is rejected'
 );
 
