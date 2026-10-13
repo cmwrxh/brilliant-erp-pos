@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./version.css";
 
@@ -6,11 +6,14 @@ export const metadata: Metadata = {
   title: "SafariPOS | Point of sale and inventory",
   description: "Point of sale, inventory, M-PESA and eTIMS workflows for Kenyan businesses.",
   applicationName: "SafariPOS",
-  themeColor: "#111A20",
   icons: {
     icon: [{ url: "/icon-source.png", type: "image/png" }],
     apple: [{ url: "/icon-source.png", type: "image/png" }],
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#111A20",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
