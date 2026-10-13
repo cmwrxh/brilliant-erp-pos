@@ -42,7 +42,7 @@ begin
   end if;
   if char_length(trim(coalesce(p_document_number,''))) not between 1 and 80
      or char_length(trim(coalesce(p_idempotency_key,'')))<8
-     or p_due_at is null or jsonb_typeof(p_lines)<>'array'
+     or p_due_at is null or p_lines is null or jsonb_typeof(p_lines) is distinct from 'array'
      or jsonb_array_length(p_lines)=0 or jsonb_array_length(p_lines)>200 then
     raise exception 'Invoice number, due date, idempotency key and 1–200 lines are required.' using errcode='22023';
   end if;
