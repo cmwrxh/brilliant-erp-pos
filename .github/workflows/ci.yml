@@ -43,7 +43,7 @@ jobs:
         with:
           version: latest
       - name: Start disposable local Supabase stack
-        run: supabase start --exclude studio,edge-runtime,logflare,vector,analytics,inbucket,storage-api,imgproxy
+        run: supabase start --exclude rest,studio,mail,analytics,functions,storage,realtime,pooler
       - name: Apply every migration to the disposable database
         run: supabase db reset --local
       - name: Run database regression tests (pgTAP)
