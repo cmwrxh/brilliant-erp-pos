@@ -51,6 +51,8 @@ declare
   caller_id uuid := auth.uid();
   caller_role text;
   existing_id uuid;
+  existing_supplier_id uuid;
+  existing_invoice_number text;
   bill_id uuid;
   ap_account uuid;
   input_vat_account uuid;
@@ -77,9 +79,12 @@ begin
   if not exists(select 1 from public.suppliers where organization_id=p_organization_id and id=p_supplier_id and is_active) then
     raise exception 'Supplier is missing, inactive or belongs to another business.' using errcode='23503';
   end if;
-  select id into existing_id from public.supplier_bills
-   where organization_id=p_organization_id and source_fingerprint=p_idempotency_key;
-  if existing_id is not null then return existing_id; end if;
+  select id,supplier_id,supplier_invoice_number into existing_id,existing_supplier_id,existing_invoice_number
+   from public.supplier_bills where organization_id=p_organization_id and source_fingerprint=p_idempotency_key;
+  if existing_id is not null then
+    if existing_supplier_id=p_supplier_id and existing_invoice_number=trim(p_supplier_invoice_number) then return existing_id; end if;
+    raise exception 'Supplier bill idempotency key was reused for different bill details.' using errcode='23505';
+  end if;
   select id into existing_id from public.supplier_bills
    where organization_id=p_organization_id and supplier_id=p_supplier_id and supplier_invoice_number=trim(p_supplier_invoice_number);
   if existing_id is not null then
@@ -159,6 +164,10 @@ declare
   caller_role text;
   bill public.supplier_bills%rowtype;
   payment_id uuid;
+  existing_bill_id uuid;
+  existing_amount numeric(16,2);
+  existing_tender text;
+  existing_reference text;
   ap_account uuid;
   tender_account uuid;
   tender_key text;
@@ -180,9 +189,13 @@ begin
   select * into bill from public.supplier_bills
    where organization_id=p_organization_id and id=p_bill_id for update;
   if not found or bill.status='void' then raise exception 'Supplier bill is missing or void.' using errcode='23514'; end if;
-  select id into payment_id from public.supplier_bill_payments
-   where organization_id=p_organization_id and idempotency_key=p_idempotency_key;
-  if payment_id is not null then return payment_id; end if;
+  select id,bill_id,amount,tender_type,provider_reference into payment_id,existing_bill_id,existing_amount,existing_tender,existing_reference
+   from public.supplier_bill_payments where organization_id=p_organization_id and idempotency_key=p_idempotency_key;
+  if payment_id is not null then
+    if existing_bill_id=p_bill_id and existing_amount=p_amount and existing_tender=p_tender_type
+       and existing_reference is not distinct from p_provider_reference then return payment_id; end if;
+    raise exception 'Idempotency key was already used for a different supplier payment.' using errcode='23505';
+  end if;
   if p_amount>bill.total_amount-bill.amount_paid then raise exception 'Payment exceeds supplier bill balance.' using errcode='23514'; end if;
   select id into ap_account from public.chart_of_accounts where organization_id=p_organization_id and system_key='accounts_payable' and is_active;
   tender_key := case p_tender_type when 'cash' then 'cash' when 'mpesa' then 'mpesa_clearing' when 'bank_transfer' then 'bank' else 'cash' end;
