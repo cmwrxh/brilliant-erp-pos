@@ -30,3 +30,24 @@ jobs:
         env:
           NEXT_TELEMETRY_DISABLED: "1"
           NEXT_PUBLIC_APP_VERSION: ${{ github.sha }}
+
+  database-tests:
+    name: Disposable local Supabase database tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start disposable local Supabase stack
+        run: supabase start --exclude studio,edge-runtime,logflare,vector,analytics,inbucket,storage-api,imgproxy
+      - name: Apply every migration to the disposable database
+        run: supabase db reset --local
+      - name: Run database regression tests (pgTAP)
+        run: supabase test db --local
+      - name: Stop disposable database
+        if: always()
+        run: supabase stop --no-backup
