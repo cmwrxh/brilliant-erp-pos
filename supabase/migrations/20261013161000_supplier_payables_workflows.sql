@@ -73,7 +73,7 @@ begin
   if p_bill_date is null or p_due_date is not null and p_due_date<p_bill_date
     or char_length(trim(coalesce(p_supplier_invoice_number,''))) not between 1 and 100
     or char_length(trim(coalesce(p_idempotency_key,'')))<8
-    or jsonb_typeof(p_lines)<>'array' or jsonb_array_length(p_lines)=0 then
+    or p_lines is null or jsonb_typeof(p_lines) is distinct from 'array' or jsonb_array_length(p_lines)=0 then
     raise exception 'Supplier invoice number, dates, idempotency key and at least one bill line are required.' using errcode='22023';
   end if;
   if not exists(select 1 from public.suppliers where organization_id=p_organization_id and id=p_supplier_id and is_active) then
@@ -179,7 +179,7 @@ begin
   if caller_role is null or caller_role not in ('owner','admin','manager') then
     raise exception 'Not authorized to pay supplier bills.' using errcode='42501';
   end if;
-  if p_tender_type not in ('cash','mpesa','bank_transfer','other')
+  if p_tender_type is null or p_tender_type not in ('cash','mpesa','bank_transfer','other')
      or p_amount is null or p_amount<=0 or char_length(trim(coalesce(p_idempotency_key,'')))<8 then
     raise exception 'Valid tender, amount and idempotency key are required.' using errcode='22023';
   end if;
