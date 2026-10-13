@@ -30,7 +30,7 @@ begin
   select * into settlement from public.mpesa_settlements
    where organization_id=p_organization_id and id=p_settlement_id for update;
   if not found then raise exception 'Settlement not found for this business.' using errcode='23503'; end if;
-  if settlement.status in ('matched','posted') then
+  if settlement.status='matched' then
     select count(*) into matched_count from public.mpesa_settlement_matches
      where organization_id=p_organization_id and settlement_id=p_settlement_id;
     if matched_count=cardinality(p_payment_ids) and not exists(
