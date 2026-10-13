@@ -31,6 +31,9 @@ export async function POST(request: NextRequest) {
     if (!invoice || invoice.document_type !== "invoice" || ["draft", "void", "credited"].includes(invoice.status)) {
       return NextResponse.json({ error: "Only an issued invoice can request payment." }, { status: 409 });
     }
+    if (invoice.currency_code !== "KES") {
+      return NextResponse.json({ error: "M-PESA collection is only supported for KES invoices. Use a provider that supports the invoice currency." }, { status: 409 });
+    }
     const amount = Number(invoice.balance_due);
     if (!Number.isFinite(amount) || amount < 1 || !Number.isInteger(amount)) {
       return NextResponse.json({ error: "M-PESA STK Push requires a whole-KES outstanding balance of at least KES 1." }, { status: 409 });
