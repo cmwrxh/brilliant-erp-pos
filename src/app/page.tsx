@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SignOutButton } from "./SignOutButton";
 import { Logo } from "@/components/Logo";
-import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, Boxes, CreditCard, LayoutDashboard, Package, Search, Settings2, ShoppingCart, Store, Users, FileText, Wallet } from "lucide-react";
+import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, Boxes, CreditCard, LayoutDashboard, Package, Search, Settings2, ShoppingCart, Users, FileText, Wallet } from "lucide-react";
 
 const nav = [{label:"Overview",href:"/",icon:LayoutDashboard,active:true},{label:"Point of sale",href:"/pos",icon:ShoppingCart},{label:"Inventory",href:"/inventory",icon:Boxes},{label:"Products",href:"/products",icon:Package},{label:"Customers",href:"/customers",icon:Users},{label:"Invoices",href:"/invoices",icon:FileText},{label:"Accounting",href:"/accounting",icon:Wallet},{label:"Reports",href:"/reports",icon:BarChart3}];
 
