@@ -138,11 +138,6 @@ begin
     p_organization_id,p_bill_date,'Supplier bill '||trim(p_supplier_invoice_number),
     'supplier_bill',bill_id,'supplier_bill',journal_lines,null
   );
-  insert into public.document_ledger_postings(organization_id,document_id,journal_entry_id,source_type,source_id,posting_purpose,posted_at)
-  select p_organization_id,d.id,journal_id,'supplier_bill',bill_id,'supplier_bill',now()
-  from public.sales_documents d
-  where d.organization_id=p_organization_id and false
-  on conflict (organization_id,source_type,source_id,posting_purpose) do nothing;
   return bill_id;
 end;
 $$;
