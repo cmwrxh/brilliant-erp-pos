@@ -52,12 +52,12 @@ Acceptance: balanced journals/trial balance; inventory valuation equals inventor
 - Current sales summary is not a ledger-based P&L. Do not add formal financial statements before acceptance.
 - Update Supabase Auth email templates separately.
 
-## Unified invoices and full POS checklist — DESIGN ADDED; IMPLEMENTATION NOT ACCEPTED
+## Unified invoices and full POS checklist — SCHEMA ADDED; NOT YET ACCEPTED
 
-The detailed data model, invoice acceptance tests, full POS status/evidence table, card-route guidance, support/privacy requirements and release sequence are in [docs/safaripos-invoice-pos-acceptance.md](./safaripos-invoice-pos-acceptance.md). This is a target design and test plan, not a claim that the tables, invoice UI or listed features are implemented.
+The detailed data model, invoice acceptance tests, full POS status/evidence table, card-route guidance, support/privacy requirements and release sequence are in [docs/safaripos-invoice-pos-acceptance.md](./safaripos-invoice-pos-acceptance.md). Additive schema migration `0017_unified_sales_documents.sql` and pgTAP contract tests are now committed on `foundation/bootstrap`. They have **not** been applied to any remote database; local CI must replay and validate them before considering the schema accepted. No invoice UI or payment/eTIMS workflow has been marked complete.
 
 - One tenant-scoped sales-document model must serve sales, invoices and credit notes; reuse the existing immutable ledger and payment/eTIMS workflows rather than creating a separate invoice silo.
-- Design the model now; defer invoice screens until both M-PESA and eTIMS sandbox acceptance gates pass.
+- The shared schema and contract-test draft are committed; defer invoice screens until local database CI passes and both M-PESA and eTIMS sandbox acceptance gates pass.
 - Credit sales must create Accounts Receivable balances and payments must clear those balances with idempotent ledger postings. Issued invoices must enter the approved eTIMS submission workflow; an offline provisional receipt is not an official eTIMS invoice.
 - Every invoice and POS checklist line has an acceptance test and evidence requirement. Do not advertise any capability until its tests pass.
 - First pilot recommendation: hardware shop. Prioritize the hardware till preset, fast category/quick-button flow, product/barcode lookup, stock receipts/reorder alerts, online M-PESA, cash-up, and the shared document/accounting foundation. Defer pharmacy expiry/batch and bar-specific workflows. Keep offline checkout disabled until its cash-only acceptance suite passes.
