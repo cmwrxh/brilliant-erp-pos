@@ -23,14 +23,14 @@ select ok(
   'sale movements update valuation and completed sales post journals'
 );
 create temporary table _safaripos_accounting_seed_context(organization_id uuid) on commit drop;
-do $
+DO $$
 declare
   seed_org_id uuid := gen_random_uuid();
 begin
   insert into public.organizations(id,name,slug)
   values(seed_org_id,'Accounting Seed Test','acct-seed-'||substr(replace(seed_org_id::text,'-',''),1,12));
   insert into _safaripos_accounting_seed_context values(seed_org_id);
-end $;
+END $$;
 select ok(
   exists(select 1 from _safaripos_accounting_seed_context c join public.accounting_settings s on s.organization_id=c.organization_id)
   and exists(select 1 from _safaripos_accounting_seed_context c join public.chart_of_accounts a on a.organization_id=c.organization_id and a.system_key='goods_received_not_invoiced'),
