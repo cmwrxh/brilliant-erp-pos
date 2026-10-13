@@ -1,7 +1,7 @@
 create extension if not exists pgtap with schema extensions;
 -- Run against a disposable Supabase database after migration 0014.
 begin;
-select plan(9);
+select plan(10);
 
 select has_table('public','accounting_settings','accounting settings table exists');
 select has_table('public','chart_of_accounts','tenant chart of accounts exists');
