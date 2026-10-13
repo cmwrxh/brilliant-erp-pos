@@ -130,6 +130,7 @@ declare
   target_status text;
 begin
   if TG_TABLE_NAME='journal_entries' then
+    if TG_OP='INSERT' and NEW.status <> 'draft' then raise exception 'Journals must be created as drafts and posted through the posting function.' using errcode='55000'; end if;
     if TG_OP='DELETE' and OLD.status <> 'draft' then raise exception 'Posted journal history is immutable; create a reversal.' using errcode='55000'; end if;
     if TG_OP='UPDATE' and OLD.status <> 'draft' then raise exception 'Posted journal history is immutable; create a reversal.' using errcode='55000'; end if;
     if TG_OP='UPDATE' and NEW.status='posted' and OLD.status='draft' then
@@ -157,6 +158,9 @@ returns trigger language plpgsql set search_path = ''
 as $$
 begin
   if TG_OP='UPDATE' then
+    if OLD.locked_at is not null and NEW.locked_at is null then
+      raise exception 'Accounting policy lock cannot be removed after first posting.' using errcode='55000';
+    end if;
     if OLD.locked_at is not null and (NEW.accounting_basis is distinct from OLD.accounting_basis or NEW.inventory_costing_method is distinct from OLD.inventory_costing_method) then
       raise exception 'Accounting basis and costing method are locked after first posting.' using errcode='55000';
     end if;
@@ -182,7 +186,7 @@ begin
 end;
 $$;
 
-create trigger journal_entries_immutable before update or delete on public.journal_entries for each row execute function public.guard_posted_journal();
+create trigger journal_entries_immutable before insert or update or delete on public.journal_entries for each row execute function public.guard_posted_journal();
 create trigger journal_lines_immutable before insert or update or delete on public.journal_lines for each row execute function public.guard_posted_journal();
 create trigger accounting_settings_guard before update on public.accounting_settings for each row execute function public.guard_accounting_policy();
 create trigger chart_account_guard before update or delete on public.chart_of_accounts for each row execute function public.guard_chart_account();
@@ -237,6 +241,7 @@ begin
   (p_organization_id,'1020','M-PESA clearing','asset','debit',true,'mpesa_clearing','mpesa_clearing'),
   (p_organization_id,'1030','Payment provider clearing','asset','debit',true,'payment_clearing','payment_clearing'),
   (p_organization_id,'1100','Accounts receivable control','asset','debit',true,'accounts_receivable','accounts_receivable'),
+  (p_organization_id,'1110','Allowance for doubtful debts','asset','credit',false,null,'doubtful_debts'),
   (p_organization_id,'1200','Inventory control','asset','debit',true,'inventory','inventory'),
   (p_organization_id,'1210','Input VAT recoverable','asset','debit',true,'vat_input','vat_input'),
   (p_organization_id,'1300','Prepayments','asset','debit',false,null,'prepayments'),
@@ -244,6 +249,7 @@ begin
   (p_organization_id,'1590','Accumulated depreciation','asset','credit',false,null,'accumulated_depreciation'),
   (p_organization_id,'2000','Accounts payable control','liability','credit',true,'accounts_payable','accounts_payable'),
   (p_organization_id,'2100','Output VAT payable','liability','credit',true,'vat_output','vat_output'),
+  (p_organization_id,'2110','VAT control / settlement','liability','credit',false,null,'vat_settlement'),
   (p_organization_id,'2200','Accrued expenses','liability','credit',false,null,'accrued_expenses'),
   (p_organization_id,'2210','Salaries and statutory deductions payable','liability','credit',false,null,'salary_payable'),
   (p_organization_id,'2300','Customer deposits / deferred revenue','liability','credit',false,null,'customer_deposits'),
