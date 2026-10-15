@@ -27,7 +27,7 @@ export async function POST(request:NextRequest){
    if(saleError)throw saleError;
    return NextResponse.json({ok:transaction.status==="succeeded",status:transaction.status,sale},{status:200});
   }
-  const result=await verifyAndCompletePayment(body.provider as "flutterwave"|"paystack",body.reference,body.provider==="flutterwave"?body.transactionId:undefined);
+  const result=await verifyAndCompletePayment(body.provider as "flutterwave"|"paystack",body.reference);
   return NextResponse.json(result,{status:result.ok?200:202});
  }catch(error){console.error("Payment verification failed",error instanceof Error?error.message:"unknown error");return NextResponse.json({error:"Could not verify payment yet. Check again shortly."},{status:503});}
 }
