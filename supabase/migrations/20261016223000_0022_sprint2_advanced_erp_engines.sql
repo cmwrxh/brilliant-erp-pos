@@ -70,6 +70,7 @@ declare
   move_id uuid;
 begin
   if not (OLD.status='in_progress' and NEW.status='completed') then return NEW; end if;
+  NEW.completed_at := coalesce(NEW.completed_at, now());
   if NEW.completed_quantity is null or NEW.completed_quantity<=0 then
     raise exception 'Completed quantity must be positive.' using errcode='23514';
   end if;
@@ -242,12 +243,14 @@ begin
   if NEW.status<>'succeeded' then return NEW; end if;
   select * into doc from public.sales_documents where organization_id=NEW.organization_id and id=NEW.document_id for update;
   if not found or doc.currency_code='KES' then return NEW; end if;
+  if NEW.tender_type='credit' then return NEW; end if;
   book_base := round(NEW.amount*doc.exchange_rate_to_kes,2);
   received_base := round(NEW.amount*NEW.settlement_exchange_rate_to_kes,2);
-  -- For receivables, receiving more KES than the booked receivable realizes a gain.
+  -- The settlement-side cash/bank account is the balancing account for FX on a receipt.
   fx_difference := received_base-book_base;
   perform public.post_realized_fx_adjustment(NEW.organization_id,'document_payment',NEW.id,(coalesce(NEW.confirmed_at,now()) at time zone 'Africa/Nairobi')::date,
-    'Realized FX on customer receipt',fx_difference,'accounts_receivable');
+    'Realized FX on customer receipt',fx_difference,
+    case NEW.tender_type when 'cash' then 'cash' when 'mpesa' then 'mpesa_clearing' when 'bank_transfer' then 'bank' when 'card' then 'payment_clearing' else 'cash' end);
   return NEW;
 end;
 $$;
@@ -327,8 +330,10 @@ begin
   ),
   projected as (
     select s.*,
-      opening_balance + sum(case when s.d<=current_date then s.inflow-s.outflow else daily_mean end)
-        over(order by s.d rows between unbounded preceding and current row) as balance,
+      case when s.d < current_date then opening_balance - coalesce(sum(case when s.d<=current_date then s.inflow-s.outflow else 0 end)
+        over(order by s.d rows between 1 following and unbounded following),0)
+        when s.d=current_date then opening_balance
+        else opening_balance + (s.d-current_date)*daily_mean end as balance,
       sqrt(greatest((s.d-current_date)::numeric,0))*daily_sigma*1.96 as margin
     from series s
   )
