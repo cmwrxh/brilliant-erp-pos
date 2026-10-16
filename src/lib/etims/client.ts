@@ -38,7 +38,9 @@ export type EtimsSubmissionResult =
  * on a generic HTTP response. This module intentionally never transmits while
  * the certified protocol adapter is absent.
  */
-export async function submitEtimsSale(_sale: EtimsSaleSnapshot): Promise<EtimsSubmissionResult> {
+export async function submitEtimsSale(sale: EtimsSaleSnapshot): Promise<EtimsSubmissionResult> {
+  // Keep the validated internal snapshot available for the future certified adapter.
+  void sale;
   const mode = process.env.KRA_ETIMS_MODE;
   if (mode !== "sandbox" && mode !== "live") {
     return { status: "blocked", reason: "KRA_ETIMS_MODE is not configured; invoice remains queued." };
