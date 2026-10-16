@@ -63,6 +63,7 @@ export function FinancialStatementCharts({ data, onPeriodChange }: Props) {
         {periods.map((item) => <button key={item.value} type="button" aria-pressed={period === item.value} className={period === item.value ? "is-active" : ""} onClick={() => changePeriod(item.value)}>{item.label}</button>)}
       </div>
     </div>
+    {!balanced && <div className="fin-balance-alert" role="alert" aria-live="assertive"><strong>Balance Sheet out of balance</strong><span>Assets differ from liabilities plus equity by {formatMoney(Math.abs(data.assets - (data.liabilities + data.equity)), data.currency)}. Review posted journals before relying on this statement.</span></div>}
     <div className="fin-summary-grid">
       <article><span>Revenue</span><strong>{formatMoney(data.revenue, data.currency)}</strong></article>
       <article><span>Expenses</span><strong>{formatMoney(data.expenses, data.currency)}</strong></article>
