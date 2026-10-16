@@ -31,7 +31,6 @@ export default function WorkforceSimulationDashboard({
   savingsLevers,
 }: WorkforceSimulationDashboardProps) {
   const [targetPercentage, setTargetPercentage] = useState(10);
-  const [error, setError] = useState<string | null>(null);
 
   const result = useMemo(() => {
     try {
@@ -86,7 +85,6 @@ export default function WorkforceSimulationDashboard({
           value={targetPercentage}
           onChange={(event) => {
             setTargetPercentage(Number(event.currentTarget.value));
-            setError(null);
           }}
           className="w-full accent-primary"
           aria-describedby="payroll-savings-help"
