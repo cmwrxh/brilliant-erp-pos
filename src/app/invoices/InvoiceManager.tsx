@@ -129,7 +129,7 @@ export function InvoiceManager({ organizationId, customers, products, locations 
         <label className="payment-form-label">Line discount (KES)<input required type="number" min="0" step="0.01" value={form.discountAmount} onChange={e => setForm({ ...form, discountAmount: e.target.value })}/></label>
       </div>
       {form.productId && <p className="muted">Catalogue price: {money(products.find(p => p.id === form.productId)?.selling_price ?? 0)} · Current product tax rate: {products.find(p => p.id === form.productId)?.tax_rate ?? 0}%. Tax code remains UNMAPPED and requires review before official tax invoicing.</p>}
-      <div className="modal-actions"><button type="button" className="provider-cancel" onClick={() => setShowForm(false)}>Cancel</button><button type="submit" className="provider-connect primary" disabled={busy}>{busy ? <><LoaderCircle size={15} className="spin"/> Saving…</> : "Save draft"}</button></div>
+      <div className="modal-actions"><button type="button" className="provider-cancel" onClick={() => setShowForm(false)}>Cancel</button><button type="submit" className="provider-connect primary" disabled={busy}>{busy ? <><LoaderCircle size={15} className="spin"/> Saving…</> : "Create Draft"}</button></div>
     </form>}
     {manualPaymentFor && <form className="product-form" onSubmit={recordManualPayment}>
       <h2>Record payment · {manualPaymentFor.document_number}</h2>
