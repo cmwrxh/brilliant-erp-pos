@@ -16,7 +16,7 @@ const formatMoney = (value: number, currency: string) =>
   new Intl.NumberFormat("en-KE", { style: "currency", currency, maximumFractionDigits: 0 }).format(value);
 
 function BarChart({ points, currency }: { points: ProfitLossPoint[]; currency: string }) {
-  const max = Math.max(1, ...points.flatMap((p) => [p.revenue, p.expenses]));
+  const max = Math.max(1, ...points.flatMap((p) => [p.revenue, p.expenses, Math.abs(p.netProfit)]));
   return <div className="fin-chart" role="img" aria-label="Profit and loss chart showing revenue, expenses and net profit by period">
     <div className="fin-chart-legend"><span><i className="fin-dot fin-revenue" />Revenue</span><span><i className="fin-dot fin-expense" />Expenses</span><span><i className="fin-dot fin-profit" />Net profit</span></div>
     <div className="fin-bars">
@@ -24,6 +24,7 @@ function BarChart({ points, currency }: { points: ProfitLossPoint[]; currency: s
         <div className="fin-bar-pair" title={`${point.label}: revenue ${formatMoney(point.revenue, currency)}, expenses ${formatMoney(point.expenses, currency)}`}>
           <span className="fin-bar fin-bar-revenue" style={{ height: `${Math.max(2, point.revenue / max * 100)}%` }} />
           <span className="fin-bar fin-bar-expense" style={{ height: `${Math.max(2, point.expenses / max * 100)}%` }} />
+          <span className={`fin-bar fin-bar-profit ${point.netProfit < 0 ? "is-negative" : ""}`} title={`Net profit ${formatMoney(point.netProfit, currency)}`} style={{ height: `${Math.max(2, Math.abs(point.netProfit) / max * 100)}%` }} />
         </div>
         <span className="fin-bar-label">{point.label}</span>
         <span className={`fin-profit-label ${point.netProfit < 0 ? "is-negative" : ""}`}>{formatMoney(point.netProfit, currency)}</span>
