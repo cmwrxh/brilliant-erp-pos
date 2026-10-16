@@ -1,6 +1,6 @@
 create extension if not exists pgtap with schema extensions;
 begin;
-select plan(15);
+select plan(16);
 
 insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at)
 values ('88888888-8888-4888-8888-888888888888','authenticated','authenticated','sprint2-owner@example.invalid','',now())
@@ -52,6 +52,7 @@ values ('88888888-0000-4888-8888-000000000005','88888888-0000-4888-8888-00000000
 insert into public.document_payments(organization_id,document_id,tender_type,idempotency_key,amount,currency_code,status,received_amount,settlement_exchange_rate_to_kes,confirmed_at)
 values ('88888888-0000-4888-8888-000000000000','88888888-0000-4888-8888-000000000005','cash','sprint2-ar-fx-test-key',100,'USD','succeeded',100,155,now());
 select ok(exists(select 1 from public.journal_entries where organization_id='88888888-0000-4888-8888-000000000000' and source_type='document_payment' and source_id=(select id from public.document_payments where idempotency_key='sprint2-ar-fx-test-key') and posting_purpose='realized_fx'),'customer settlement creates an idempotent realized FX journal');
+select ok(exists(select 1 from public.journal_lines l join public.journal_entries j on j.id=l.journal_entry_id and j.organization_id=l.organization_id join public.chart_of_accounts a on a.id=l.account_id and a.organization_id=l.organization_id where j.organization_id='88888888-0000-4888-8888-000000000000' and j.source_type='document_payment' and j.source_id=(select id from public.document_payments where idempotency_key='sprint2-ar-fx-test-key') and a.system_key='realized_fx_gain' and l.credit=500),'customer FX gain is posted to the gain account in KES');
 
 insert into public.suppliers(id,organization_id,name,supplier_code)
 values ('88888888-0000-4888-8888-000000000006','88888888-0000-4888-8888-000000000000','FX Test Supplier','FX-TEST');
@@ -60,6 +61,7 @@ values ('88888888-0000-4888-8888-000000000007','88888888-0000-4888-8888-00000000
 insert into public.supplier_bill_payments(organization_id,bill_id,tender_type,idempotency_key,amount,settlement_exchange_rate_to_kes)
 values ('88888888-0000-4888-8888-000000000000','88888888-0000-4888-8888-000000000007','bank_transfer','sprint2-ap-fx-test-key',100,155);
 select ok(exists(select 1 from public.journal_entries where organization_id='88888888-0000-4888-8888-000000000000' and source_type='supplier_bill_payment' and source_id=(select id from public.supplier_bill_payments where idempotency_key='sprint2-ap-fx-test-key') and posting_purpose='realized_fx'),'supplier settlement creates an idempotent realized FX journal');
+select ok(exists(select 1 from public.journal_lines l join public.journal_entries j on j.id=l.journal_entry_id and j.organization_id=l.organization_id join public.chart_of_accounts a on a.id=l.account_id and a.organization_id=l.organization_id where j.organization_id='88888888-0000-4888-8888-000000000000' and j.source_type='supplier_bill_payment' and j.source_id=(select id from public.supplier_bill_payments where idempotency_key='sprint2-ap-fx-test-key') and a.system_key='realized_fx_loss' and l.debit=500),'supplier FX loss is posted to the loss account in KES');
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub','88888888-8888-4888-8888-888888888888',true);
