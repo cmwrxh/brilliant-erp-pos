@@ -43,23 +43,45 @@ export function InvoiceManager({ organizationId, customers, products, locations 
   useEffect(() => { void load(); }, [load]);
 
   async function createDraft(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setBusy(true); setError("");
+    event.preventDefault();
+    setBusy(true);
+    setError("");
     try {
+      if (!form.documentNumber.trim() || !form.customerId || !form.locationId || !form.dueAt || !form.productId) {
+        throw new Error("Complete the invoice number, customer, active branch, due date and product before saving.");
+      }
+      const dueDate = new Date(form.dueAt + "T23:59:59+03:00");
+      if (!Number.isFinite(dueDate.getTime())) throw new Error("Enter a valid invoice due date.");
       const response = await fetch("/api/invoices", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
         body: JSON.stringify({
-          organizationId, documentNumber: form.documentNumber, customerId: form.customerId,
-          locationId: form.locationId, dueAt: new Date(form.dueAt + "T23:59:59+03:00").toISOString(),
+          organizationId,
+          documentNumber: form.documentNumber.trim(),
+          customerId: form.customerId,
+          locationId: form.locationId,
+          dueAt: dueDate.toISOString(),
+          idempotencyKey: "invoice-draft:" + crypto.randomUUID(),
           items: [{ productId: form.productId, quantity: Number(form.quantity), discountAmount: Number(form.discountAmount) }]
         })
       });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error ?? "Could not create invoice draft.");
+      const responseText = await response.text();
+      let result: { error?: string; invoiceId?: string };
+      try { result = JSON.parse(responseText) as { error?: string; invoiceId?: string }; }
+      catch { result = { error: responseText.trim() || "The server returned an unreadable response." }; }
+      if (!response.ok) {
+        throw new Error(result.error || `Invoice draft failed (HTTP ${response.status}).`);
+      }
+      if (!result.invoiceId) throw new Error("The server responded without an invoice ID. Refresh the invoice list before retrying.");
+      setError("Draft saved successfully: " + result.invoiceId);
       setShowForm(false);
       setForm({ documentNumber: "", customerId: "", locationId: locations[0]?.id ?? "", dueAt: "", productId: "", quantity: "1", discountAmount: "0" });
       await load();
-    } catch (e) { setError(e instanceof Error ? e.message : "Could not create invoice draft."); }
-    finally { setBusy(false); }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not create invoice draft.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function issue(invoice: Invoice) {
