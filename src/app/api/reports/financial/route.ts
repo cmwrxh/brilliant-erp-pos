@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { BalanceSheetLine, DashboardPeriod, FinancialDashboardData, ProfitLossPoint } from "@/components/dashboard/financial-types";
 
 type AccountType = "asset" | "liability" | "equity" | "revenue" | "expense";
@@ -160,7 +161,7 @@ export async function GET(request: Request) {
     };
     if (cacheVersion) {
       // Cache writes are an optimization: a transient cache failure must not hide a valid report.
-      await supabase.from("financial_report_cache").upsert({
+      await createSupabaseAdminClient().from("financial_report_cache").upsert({
         organization_id: organizationId,
         period_start: start,
         period_end: end,
