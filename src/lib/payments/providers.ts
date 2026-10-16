@@ -71,9 +71,12 @@ export async function initializeProviderPayment(provider: PaymentProvider, crede
     if (!Number.isInteger(input.amount) || input.amount < 1) {
       throw new Error("M-PESA STK Push requires a whole KES amount of at least KES 1. Adjust the sale total before requesting payment.");
     }
-    const digits = input.phone.replace(/[\\s()+-]/g, "");
-    const phone = digits.startsWith("0") ? "254" + digits.slice(1) : digits.startsWith("254") ? digits : digits;
-    if (!/^254(?:7|1)\d{8}$/.test(phone)) throw new Error("Enter a valid Kenyan mobile number, e.g. 0712345678.");
+    // Accept only common phone-number formatting characters; reject embedded text.
+    const rawPhone = input.phone.trim();
+    if (!/^[+\d\s()-]+$/.test(rawPhone)) throw new Error("Enter a phone number using digits and standard phone formatting only.");
+    const digits = rawPhone.replace(/[\s()+-]/g, "");
+    const phone = digits.startsWith("0") ? "254" + digits.slice(1) : digits;
+    if (!/^254(?:7|1)\d{8}$/.test(phone)) throw new Error("Enter a valid Kenyan mobile number, e.g. 0712345678 or +254712345678.");
     const sandbox = (credentials.environment ?? "test") === "test";
     const apiBase = sandbox ? "https://sandbox.safaricom.co.ke" : "https://api.safaricom.co.ke";
     const basic = Buffer.from(consumerKey + ":" + consumerSecret).toString("base64");
