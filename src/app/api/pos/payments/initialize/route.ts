@@ -52,7 +52,7 @@ export async function POST(request:NextRequest){
   if(transactionError)throw transactionError;
   const base=(process.env.APP_BASE_URL??request.nextUrl.origin).replace(/\/$/,"");
   try{
-    const callbackUrl=body.provider==="mpesa"?base+"/api/payments/webhooks/mpesa?reference="+encodeURIComponent(reference)+"&token="+encodeURIComponent(callbackToken):base+"/payments/return?provider="+body.provider;
+    const callbackUrl=body.provider==="mpesa"?base+"/api/payments/webhooks/daraja?reference="+encodeURIComponent(reference)+"&token="+encodeURIComponent(callbackToken):base+"/payments/return?provider="+body.provider;
     const initialized=await initializeProviderPayment(body.provider as PaymentProvider,credentials,{reference,amount:Number(sale.grand_total),currency:sale.currency_code,email,name:typeof body.name==="string"?body.name.slice(0,120):undefined,phone:typeof body.phone==="string"?body.phone.slice(0,30):undefined,callbackUrl,metadata:{organization_id:organizationId,sale_id:saleId}});
     if(body.provider==="mpesa"){
       const {error:updateError}=await admin.from("provider_transactions").update({provider_reference:initialized.providerReference,updated_at:new Date().toISOString()}).eq("reference",reference).eq("organization_id",organizationId);
