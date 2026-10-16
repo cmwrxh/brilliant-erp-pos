@@ -160,14 +160,18 @@ export async function GET(request: Request) {
       profitLoss, assetsBreakdown, liabilitiesBreakdown, equityBreakdown,
     };
     if (cacheVersion) {
-      // Cache writes are an optimization: a transient cache failure must not hide a valid report.
-      await createSupabaseAdminClient().from("financial_report_cache").upsert({
-        organization_id: organizationId,
-        period_start: start,
-        period_end: end,
-        latest_transaction_at: cacheVersion,
-        report_data: data,
-      }, { onConflict: "organization_id,period_start,period_end,latest_transaction_at" });
+      // Cache writes are best-effort; a missing admin credential or cache outage must not fail a valid report.
+      try {
+        await createSupabaseAdminClient().from("financial_report_cache").upsert({
+          organization_id: organizationId,
+          period_start: start,
+          period_end: end,
+          latest_transaction_at: cacheVersion,
+          report_data: data,
+        }, { onConflict: "organization_id,period_start,period_end,latest_transaction_at" });
+      } catch {
+        // The uncached report remains valid and is returned below.
+      }
     }
     return NextResponse.json({ data, period, start, end });
   } catch {
