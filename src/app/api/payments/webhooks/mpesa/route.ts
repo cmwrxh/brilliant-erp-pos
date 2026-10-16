@@ -29,11 +29,10 @@ async function confirmWithDaraja(admin:ReturnType<typeof createSupabaseAdminClie
 function valueOf(items:CallbackItem[],name:string){return items.find(item=>item.Name===name)?.Value;}
 function safeEqualHex(a:string,b:string){try{const left=Buffer.from(a,"hex");const right=Buffer.from(b,"hex");return left.length===right.length&&left.length>0&&timingSafeEqual(left,right);}catch{return false;}}
 
-export async function POST(request:NextRequest,context?:{params?:Promise<{reference:string;token:string}>|{reference:string;token:string}}){
+export async function POST(request:NextRequest){
  try{
-  const routeParams=context?.params?await context.params:undefined;
-  const reference=routeParams?.reference??request.nextUrl.searchParams.get("reference")??"";
-  const token=routeParams?.token??request.nextUrl.searchParams.get("token")??"";
+  const reference=request.nextUrl.searchParams.get("reference")??"";
+  const token=request.nextUrl.searchParams.get("token")??"";
   if(!/^ERP-[0-9a-f-]{36}$/i.test(reference)||token.length<32)return NextResponse.json({ResultCode:1,ResultDesc:"Invalid callback reference."},{status:401});
   const admin=createSupabaseAdminClient();
   const {data:transaction,error}=await admin.from("provider_transactions")
