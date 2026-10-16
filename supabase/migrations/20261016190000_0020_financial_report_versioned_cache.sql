@@ -63,13 +63,4 @@ create policy "Members read financial report cache"
 on public.financial_report_cache for select to authenticated
 using (public.is_organization_member(organization_id));
 
-create policy "Members insert financial report cache"
-on public.financial_report_cache for insert to authenticated
-with check (public.is_organization_member(organization_id));
-
-create policy "Members update financial report cache"
-on public.financial_report_cache for update to authenticated
-using (public.is_organization_member(organization_id))
-with check (public.is_organization_member(organization_id));
-
 revoke all on function public.bump_financial_report_cache_version() from public, anon, authenticated;
