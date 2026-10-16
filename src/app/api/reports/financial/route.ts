@@ -41,10 +41,19 @@ export async function GET(request: Request) {
     const today = new Date();
     const { start, end } = dateRange(period, today, url.searchParams.get("start"), url.searchParams.get("end"));
     if (start > end || end > isoDate(today)) return NextResponse.json({ error: "Invalid reporting date range." }, { status: 400 });
+    const requestedDays = Math.floor((new Date(`${end}T00:00:00.000Z`).getTime() - new Date(`${start}T00:00:00.000Z`).getTime()) / 86400000) + 1;
+    const MAX_REPORT_DAYS = 366;
+    if (!Number.isFinite(requestedDays) || requestedDays < 1 || requestedDays > MAX_REPORT_DAYS) {
+      return NextResponse.json({ error: "Reporting ranges are limited to 366 days. Choose a shorter interval." }, { status: 400 });
+    }
 
+    // One joined ledger read path avoids separate account and journal lookups.
+    // The balance sheet requires lifetime balances through `end`, so fail closed
+    // rather than silently returning a partial statement when history is too large.
     const lines: LedgerLine[] = [];
     const pageSize = 1000;
-    for (let offset = 0; ; offset += pageSize) {
+    const maxLedgerLines = 20000;
+    for (let offset = 0; offset < maxLedgerLines; offset += pageSize) {
       const { data, error } = await supabase.from("journal_lines")
         .select("debit,credit,chart_of_accounts!inner(name,code,account_type,system_key),journal_entries!inner(accounting_date,status)")
         .eq("organization_id", organizationId).eq("journal_entries.status", "posted")
@@ -54,6 +63,9 @@ export async function GET(request: Request) {
       const batch = (data ?? []) as unknown as LedgerLine[];
       lines.push(...batch);
       if (batch.length < pageSize) break;
+      if (offset + pageSize >= maxLedgerLines) {
+        return NextResponse.json({ error: "This ledger is too large for synchronous reporting. Use a pre-aggregated accounting report." }, { status: 413 });
+      }
     }
 
     const accountBalances = new Map<string, { name: string; type: AccountType; amount: number }>();
