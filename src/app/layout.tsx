@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./version.css";
+import "../components/dashboard/financial-dashboard.css";
 
 export const metadata: Metadata = {
   title: "SafariPOS | Point of sale and inventory",
