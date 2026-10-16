@@ -47,6 +47,32 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Reporting ranges are limited to 366 days. Choose a shorter interval." }, { status: 400 });
     }
 
+    // Cache only ranges fully contained in a closed period. The tenant-specific
+    // version is updated transactionally by database triggers on journal and account changes.
+    let cacheVersion: string | null = null;
+    const { data: closedPeriod, error: closedPeriodError } = await supabase
+      .from("accounting_periods").select("id")
+      .eq("organization_id", organizationId).eq("status", "closed")
+      .lte("starts_on", start).gte("ends_on", end).limit(1).maybeSingle();
+    if (closedPeriodError) throw closedPeriodError;
+    if (closedPeriod) {
+      const { data: versionRow, error: versionError } = await supabase
+        .from("financial_report_cache_versions").select("latest_transaction_at")
+        .eq("organization_id", organizationId).maybeSingle();
+      if (versionError) throw versionError;
+      cacheVersion = versionRow?.latest_transaction_at ?? null;
+      if (cacheVersion) {
+        const { data: cached, error: cacheReadError } = await supabase
+          .from("financial_report_cache").select("report_data")
+          .eq("organization_id", organizationId).eq("period_start", start).eq("period_end", end)
+          .eq("latest_transaction_at", cacheVersion).maybeSingle();
+        if (cacheReadError) throw cacheReadError;
+        if (cached?.report_data) {
+          return NextResponse.json({ data: cached.report_data as FinancialDashboardData, period, start, end });
+        }
+      }
+    }
+
     // One joined ledger read path avoids separate account and journal lookups.
     // The balance sheet requires lifetime balances through `end`, so fail closed
     // rather than silently returning a partial statement when history is too large.
@@ -132,6 +158,16 @@ export async function GET(request: Request) {
       liabilities: Number(liabilities.toFixed(2)), equity: Number(equity.toFixed(2)),
       profitLoss, assetsBreakdown, liabilitiesBreakdown, equityBreakdown,
     };
+    if (cacheVersion) {
+      // Cache writes are an optimization: a transient cache failure must not hide a valid report.
+      await supabase.from("financial_report_cache").upsert({
+        organization_id: organizationId,
+        period_start: start,
+        period_end: end,
+        latest_transaction_at: cacheVersion,
+        report_data: data,
+      }, { onConflict: "organization_id,period_start,period_end,latest_transaction_at" });
+    }
     return NextResponse.json({ data, period, start, end });
   } catch {
     return NextResponse.json({ error: "Financial ledger report could not be loaded." }, { status: 500 });
