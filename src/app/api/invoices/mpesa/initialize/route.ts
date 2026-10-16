@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     });
     if (insertError) throw insertError;
     const base = (process.env.APP_BASE_URL ?? request.nextUrl.origin).replace(/\/$/, "");
-    const callbackUrl = base + "/api/payments/webhooks/daraja/" + encodeURIComponent(reference) + "/" + encodeURIComponent(token);
+    const callbackUrl = base + "/api/v1/payments/mpesa-callback?reference=" + encodeURIComponent(reference) + "&token=" + encodeURIComponent(token);
     try {
       const initialized = await initializeProviderPayment("mpesa", credentials, {
         reference, amount, currency: invoice.currency_code, email: "invoice-payment@invalid.example",
