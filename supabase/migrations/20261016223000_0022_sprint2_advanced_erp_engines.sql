@@ -144,7 +144,7 @@ begin
     values(NEW.organization_id,NEW.location_id,NEW.output_product_id,'manufacturing_output',NEW.completed_quantity,output_before,output_after,'manufacturing_work_order',NEW.id,'Finished goods produced',NEW.created_by)
     returning id into move_id;
   insert into public.inventory_valuation_movements(organization_id,location_id,product_id,inventory_movement_id,movement_type,source_type,source_id,quantity_delta,unit_cost,value_delta,quantity_before,quantity_after,value_before,value_after,average_cost_after,note,created_by)
-    values(NEW.organization_id,NEW.location_id,NEW.output_product_id,move_id,'manufacturing_output','manufacturing_work_order',NEW.id,NEW.completed_quantity,output_avg,output_value,output_before,output_after,output_value_before,output_value_after,output_avg,'Finished goods valued at consumed component cost',NEW.created_by);
+    values(NEW.organization_id,NEW.location_id,NEW.output_product_id,move_id,'manufacturing_output','manufacturing_work_order',NEW.id,NEW.completed_quantity,round(output_value/NEW.completed_quantity,6),output_value,output_before,output_after,output_value_before,output_value_after,output_avg,'Finished goods valued at consumed component cost',NEW.created_by);
   return NEW;
 end;
 $$;
@@ -290,7 +290,7 @@ begin
   where l.organization_id=p_organization_id and a.system_key in ('cash','bank')
     and j.accounting_date<=current_date;
 
-  with daily as (
+  with daily_activity as (
     select j.accounting_date,
       sum(case when (a.normal_balance='debit' and l.debit>l.credit) or (a.normal_balance='credit' and l.credit>l.debit)
         then abs(l.debit-l.credit) else 0 end) as inflow,
@@ -300,11 +300,14 @@ begin
     join public.journal_entries j on j.organization_id=l.organization_id and j.id=l.journal_entry_id and j.status='posted'
     join public.chart_of_accounts a on a.organization_id=l.organization_id and a.id=l.account_id
     where l.organization_id=p_organization_id and a.system_key in ('cash','bank')
-      and j.accounting_date between current_date-history_days and current_date
+      and j.accounting_date between current_date-history_days+1 and current_date
     group by j.accounting_date
   )
-  select coalesce(avg(inflow-outflow),0),coalesce(stddev_pop(inflow-outflow),0)
-    into daily_mean,daily_sigma from daily;
+  select coalesce(avg(coalesce(a.inflow,0)-coalesce(a.outflow,0)),0),
+         coalesce(stddev_pop(coalesce(a.inflow,0)-coalesce(a.outflow,0)),0)
+    into daily_mean,daily_sigma
+  from generate_series((current_date-history_days+1)::timestamp,current_date::timestamp,interval '1 day') d
+  left join daily_activity a on a.accounting_date=d::date;
 
   return query
   with dates as (
