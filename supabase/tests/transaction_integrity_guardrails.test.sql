@@ -84,6 +84,11 @@ select is(
   5::numeric,
   'stock balance rolls back after forced post-trigger failure'
 );
+select is(
+  (select quantity from public.inventory_valuation_balances where organization_id='77777777-0000-4777-8777-777777777777' and location_id='77777777-0000-4777-8777-000000000001' and product_id='77777777-0000-4777-8777-000000000002'),
+  5::numeric,
+  'weighted-average valuation quantity rolls back after forced post-trigger failure'
+);
 
 -- Drop the fault injector, then prove a quantity above both stock balances is rejected.
 drop trigger zz_test_fail_after_checkout_side_effects on public.sales;
