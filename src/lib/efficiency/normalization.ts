@@ -1,5 +1,6 @@
 export type WorkforceMetricObservation = {
   organizationId: string;
+  employeeId: string;
   role: string;
   level: string;
   period: string;
@@ -10,7 +11,7 @@ export type WorkforceMetricObservation = {
 export type NormalizedPeerGroup = {
   role: string;
   level: string;
-  observationCount: number;
+  employeeCount: number;
   periodCount: number;
   averageSalesThroughput: number;
   averageInventoryThroughput: number;
@@ -20,10 +21,9 @@ export type NormalizedPeerGroup = {
 };
 
 /**
- * Tenant-scoped, aggregate-only peer normalization.
- *
- * Deliberately returns cohort statistics rather than employee-level scores or
- * rankings. Use a minimum cohort size to reduce re-identification risk.
+ * Tenant-scoped, aggregate-only peer normalization. Employee identifiers are
+ * used only to avoid over-weighting people with more history; they are never
+ * returned and no individual score or ranking is generated.
  */
 export function normalizePeerGroups(
   organizationId: string,
@@ -40,8 +40,8 @@ export function normalizePeerGroups(
     if (observation.organizationId !== organizationId) {
       throw new Error("Cross-tenant workforce data rejected");
     }
-    if (!observation.role.trim() || !observation.level.trim() || !observation.period.trim()) {
-      throw new Error("Role, level, and period are required");
+    if (!observation.employeeId.trim() || !observation.role.trim() || !observation.level.trim() || !observation.period.trim()) {
+      throw new Error("Employee, role, level, and period are required");
     }
     for (const value of [observation.salesThroughput, observation.inventoryThroughput]) {
       if (!Number.isFinite(value) || value < 0) {
@@ -59,24 +59,34 @@ export function normalizePeerGroups(
   const stdDev = (values: number[], average: number) =>
     Math.sqrt(values.reduce((sum, value) => sum + (value - average) ** 2, 0) / values.length);
 
-  return [...cohorts.values()]
-    .filter((cohort) => new Set(cohort.map((item) => item.period)).size >= minimumCohortSize)
-    .map((cohort) => {
-      const sales = cohort.map((item) => item.salesThroughput);
-      const inventory = cohort.map((item) => item.inventoryThroughput);
-      const averageSales = mean(sales);
-      const averageInventory = mean(inventory);
-      return {
-        role: cohort[0].role.trim(),
-        level: cohort[0].level.trim(),
-        observationCount: cohort.length,
-        periodCount: new Set(cohort.map((item) => item.period)).size,
-        averageSalesThroughput: averageSales,
-        averageInventoryThroughput: averageInventory,
-        averageCombinedThroughput: averageSales + averageInventory,
-        salesThroughputStdDev: stdDev(sales, averageSales),
-        inventoryThroughputStdDev: stdDev(inventory, averageInventory),
-      };
-    })
-    .sort((a, b) => a.role.localeCompare(b.role) || a.level.localeCompare(b.level));
+  return [...cohorts.values()].flatMap((cohort) => {
+    const byEmployee = new Map<string, WorkforceMetricObservation[]>();
+    for (const item of cohort) {
+      const history = byEmployee.get(item.employeeId) ?? [];
+      history.push(item);
+      byEmployee.set(item.employeeId, history);
+    }
+    if (byEmployee.size < minimumCohortSize) return [];
+
+    const employeeMeans = [...byEmployee.values()].map((history) => ({
+      sales: mean(history.map((item) => item.salesThroughput)),
+      inventory: mean(history.map((item) => item.inventoryThroughput)),
+    }));
+    const sales = employeeMeans.map((item) => item.sales);
+    const inventory = employeeMeans.map((item) => item.inventory);
+    const averageSales = mean(sales);
+    const averageInventory = mean(inventory);
+
+    return [{
+      role: cohort[0].role.trim(),
+      level: cohort[0].level.trim(),
+      employeeCount: byEmployee.size,
+      periodCount: new Set(cohort.map((item) => item.period)).size,
+      averageSalesThroughput: averageSales,
+      averageInventoryThroughput: averageInventory,
+      averageCombinedThroughput: averageSales + averageInventory,
+      salesThroughputStdDev: stdDev(sales, averageSales),
+      inventoryThroughputStdDev: stdDev(inventory, averageInventory),
+    }];
+  }).sort((a, b) => a.role.localeCompare(b.role) || a.level.localeCompare(b.level));
 }
